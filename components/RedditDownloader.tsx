@@ -14,18 +14,47 @@ export default function RedditDownloader() {
   const [media, setMedia] = useState<RedditMediaResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [pasting, setPasting] = useState(false);
+  const [sessionCookie, setSessionCookie] = useState("");
+  const [bearerToken, setBearerToken] = useState("");
+  const [rememberLogin, setRememberLogin] = useState(true);
 
   const isGallery = useMemo(() => (media?.items.length || 0) > 1, [media]);
 
   useEffect(() => {
     const saved = localStorage.getItem("reddit-history");
     if (saved) setHistory(JSON.parse(saved));
+
+    const savedAuth = localStorage.getItem("reddit-auth");
+    if (savedAuth) {
+      const parsed = JSON.parse(savedAuth) as { sessionCookie?: string; bearerToken?: string };
+      setSessionCookie(parsed.sessionCookie || "");
+      setBearerToken(parsed.bearerToken || "");
+    }
   }, []);
 
   useEffect(() => {
     if (!history.length) return;
     localStorage.setItem("reddit-history", JSON.stringify(history.slice(0, 50)));
   }, [history]);
+
+  useEffect(() => {
+    if (!rememberLogin) {
+      localStorage.removeItem("reddit-auth");
+      return;
+    }
+
+    if (sessionCookie || bearerToken) {
+      localStorage.setItem(
+        "reddit-auth",
+        JSON.stringify({
+          sessionCookie,
+          bearerToken,
+        }),
+      );
+    } else {
+      localStorage.removeItem("reddit-auth");
+    }
+  }, [sessionCookie, bearerToken, rememberLogin]);
 
   const handlePaste = async () => {
     setPasting(true);
@@ -45,7 +74,17 @@ export default function RedditDownloader() {
     setError(null);
     setMedia(null);
     try {
-      const res = await fetch(`/api/reddit?url=${encodeURIComponent(url)}`);
+      const res = await fetch(`/api/reddit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url,
+          sessionCookie: sessionCookie.trim() || undefined,
+          bearerToken: bearerToken.trim() || undefined,
+        }),
+      });
       const json = (await res.json()) as RedditMediaResponse & { error?: string };
       if (!res.ok) throw new Error(json.error || "Lookup failed");
       setMedia(json);
@@ -126,6 +165,43 @@ export default function RedditDownloader() {
             Works with public Reddit posts that include hosted images, GIFs, videos, or galleries.
           </p>
         )}
+
+        <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-3">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <div>
+              <p className="font-semibold text-slate-100">Login help (optional)</p>
+              <p className="text-slate-400 text-xs">
+                Paste your Reddit session cookie or OAuth bearer token if the post is private, NSFW, or blocked.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={rememberLogin}
+                onChange={(e) => setRememberLogin(e.target.checked)}
+                className="accent-orange-400"
+              />
+              Remember in this browser
+            </label>
+          </div>
+          <div className="grid md:grid-cols-2 gap-2">
+            <input
+              value={sessionCookie}
+              onChange={(e) => setSessionCookie(e.target.value)}
+              placeholder="reddit_session=..."
+              className="bg-black/20 rounded-lg px-3 py-2 text-sm border border-white/10 placeholder:text-slate-500"
+            />
+            <input
+              value={bearerToken}
+              onChange={(e) => setBearerToken(e.target.value)}
+              placeholder="OAuth bearer token (optional)"
+              className="bg-black/20 rounded-lg px-3 py-2 text-sm border border-white/10 placeholder:text-slate-500"
+            />
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Credentials stay on this device and are sent only with your Reddit request to resolve media.
+          </p>
+        </div>
       </div>
 
       {media && (

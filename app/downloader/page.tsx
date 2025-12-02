@@ -30,7 +30,7 @@ export default function DownloaderPage() {
           <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
           <h2 className="text-2xl font-semibold">Reddit photo, GIF, & video downloader</h2>
         </div>
-        <p className="text-sm text-slate-400">Download hosted Reddit images, GIFs, videos, and galleries without leaving the app.</p>
+        <p className="text-sm text-slate-400">Download hosted Reddit images, GIFs, videos, and galleries — add your Reddit login for blocked or private posts.</p>
         <RedditDownloader />
       </div>
     </div>

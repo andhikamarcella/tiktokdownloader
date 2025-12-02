@@ -12,6 +12,11 @@ export type RedditMediaResponse = {
   items: RedditMediaItem[];
 };
 
+export type RedditAuth = {
+  sessionCookie?: string;
+  bearerToken?: string;
+};
+
 type RedditListing = {
   data: {
     children: { data: RedditPost }[];
@@ -158,15 +163,17 @@ function extractDirectUrl(post: RedditPost): RedditMediaItem[] {
   return items;
 }
 
-async function fetchRedditPost(url: string): Promise<RedditPost> {
+async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPost> {
   const trimUrl = url.replace(/\?.*$/, "").replace(/\.json$/, "").replace(/\/$/, "");
+  const sessionCookie = auth?.sessionCookie?.trim();
   const headers = {
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     Accept: "application/json, text/plain, */*",
     "Accept-Language": "en-US,en;q=0.9",
     Referer: "https://www.reddit.com/",
-    Cookie: "over18=1;" as const,
+    Cookie: `over18=1;${sessionCookie ? ` ${sessionCookie}` : ""}`,
+    ...(auth?.bearerToken ? { Authorization: `Bearer ${auth.bearerToken}` } : {}),
   } as const;
 
   const resolvedUrl = await (async () => {
@@ -251,8 +258,8 @@ async function fetchRedditPost(url: string): Promise<RedditPost> {
   throw new Error(lastError || "No Reddit post found for this URL");
 }
 
-export async function fetchRedditMedia(url: string): Promise<RedditMediaResponse> {
-  const post = await fetchRedditPost(url);
+export async function fetchRedditMedia(url: string, auth?: RedditAuth): Promise<RedditMediaResponse> {
+  const post = await fetchRedditPost(url, auth);
 
   const items: RedditMediaItem[] = [];
   const seen = new Set<string>();
