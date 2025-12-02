@@ -160,10 +160,23 @@ function extractDirectUrl(post: RedditPost): RedditMediaItem[] {
 
 async function fetchRedditPost(url: string): Promise<RedditPost> {
   const trimUrl = url.replace(/\?.*$/, "").replace(/\.json$/, "").replace(/\/$/, "");
+  const parsed = (() => {
+    try {
+      return new URL(trimUrl.startsWith("http") ? trimUrl : `https://${trimUrl}`);
+    } catch {
+      return null;
+    }
+  })();
+
+  const path = parsed?.pathname || "";
+  const basePath = path ? path.replace(/\/$/, "") : "";
+
   const candidates = [
     `https://www.reddit.com/api/info.json?raw_json=1&url=${encodeURIComponent(trimUrl)}`,
     `${trimUrl}.json?raw_json=1`,
-  ];
+    basePath ? `https://old.reddit.com${basePath}.json?raw_json=1` : null,
+    basePath ? `https://api.reddit.com${basePath}?raw_json=1` : null,
+  ].filter(Boolean) as string[];
 
   let lastError: string | undefined;
 
@@ -174,13 +187,23 @@ async function fetchRedditPost(url: string): Promise<RedditPost> {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           Accept: "application/json",
+          "Accept-Language": "en-US,en;q=0.9",
+          Referer: "https://www.reddit.com/",
         },
         cache: "no-store",
       });
 
       if (!res.ok) {
         const text = await res.text();
-        lastError = `Reddit lookup failed: ${res.status} ${text?.slice(0, 200)}`;
+        const cleanText = text?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+        if (res.status === 403) {
+          lastError = "Reddit returned 403 (access blocked). Try a public post or the share link.";
+        } else if (res.status === 404) {
+          lastError = "Reddit post not found (404).";
+        } else {
+          const snippet = cleanText ? ` ${cleanText.slice(0, 160)}` : "";
+          lastError = `Reddit lookup failed: ${res.status}${snippet}`;
+        }
         continue;
       }
 
