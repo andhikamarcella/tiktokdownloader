@@ -13,6 +13,7 @@ type ApiResponse = {
   image: string | null;
   gallery: string[];
   resolvedUrl: string;
+  raw: any;
   error?: string;
 };
 
@@ -24,7 +25,7 @@ export async function resolveRedditUrl(input: string): Promise<string> {
   const target = ensureAbsolute(input).replace(/\.json($|\?.*)/i, "").replace(/\/$/, "");
   try {
     const res = await fetch(target, {
-      method: "HEAD",
+      method: "GET",
       redirect: "follow",
       headers: {
         "User-Agent": USER_AGENT,
@@ -70,9 +71,13 @@ function buildAudioUrl(videoUrl: string): string | null {
     const parts = parsed.pathname.split("/").filter(Boolean);
     const postId = parts[0];
 
-    if (postId) {
-      return `${parsed.origin}/${postId}/DASH_audio.mp4`;
-    }
+    if (!postId) return null;
+
+    parsed.pathname = `/${postId}/DASH_audio.mp4`;
+    parsed.search = "";
+    parsed.hash = "";
+
+    return parsed.toString();
   } catch {
     // ignore
   }
@@ -84,7 +89,17 @@ export function extractMedia(json: any, resolvedUrl: string): ApiResponse {
   const post = getPostFromJson(json);
 
   if (!post) {
-    return { ok: false, type: "unknown", video: null, audio: null, image: null, gallery: [], resolvedUrl, error: "No post data found" };
+    return {
+      ok: false,
+      type: "unknown",
+      video: null,
+      audio: null,
+      image: null,
+      gallery: [],
+      resolvedUrl,
+      raw: json,
+      error: "No post data found",
+    };
   }
 
   const response: ApiResponse = {
@@ -95,6 +110,7 @@ export function extractMedia(json: any, resolvedUrl: string): ApiResponse {
     image: null,
     gallery: [],
     resolvedUrl,
+    raw: json,
   };
 
   const redditVideo =
@@ -105,7 +121,7 @@ export function extractMedia(json: any, resolvedUrl: string): ApiResponse {
   if (fallback) {
     response.video = fallback;
     response.audio = buildAudioUrl(fallback);
-    response.type = "video";
+    response.type = redditVideo?.is_gif ? "gif" : "video";
     return response;
   }
 
@@ -148,6 +164,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       image: null,
       gallery: [],
       resolvedUrl: "",
+      raw: {},
       error: "Method not allowed",
     });
   }
@@ -162,6 +179,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       image: null,
       gallery: [],
       resolvedUrl: "",
+      raw: {},
       error: "Missing url parameter",
     });
   }
@@ -185,6 +203,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       image: null,
       gallery: [],
       resolvedUrl: "",
+      raw: {},
       error: (error as Error).message || "Unexpected error",
     });
   }
