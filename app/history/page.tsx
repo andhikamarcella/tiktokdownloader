@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { History, Trash2 } from 'lucide-react'
+import { Clipboard, Check, History, Trash2 } from 'lucide-react'
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<any[]>([])
+  const [copied, setCopied] = useState<string | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('tt-history')
@@ -14,6 +15,16 @@ export default function HistoryPage() {
   const clear = () => {
     localStorage.removeItem('tt-history')
     setHistory([])
+  }
+
+  const copyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(url)
+      setTimeout(() => setCopied(null), 1500)
+    } catch (err) {
+      console.error('Failed to copy link', err)
+    }
   }
 
   return (
@@ -28,12 +39,21 @@ export default function HistoryPage() {
           <Trash2 className="w-4 h-4" /> Clear
         </button>
       </div>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {history.map((item) => (
-          <div key={item.ts} className="glass neu p-3 rounded-xl text-sm">
-            <img src={item.thumb} className="w-full rounded-lg" />
-            <p className="mt-2 line-clamp-2">{item.caption}</p>
-            <p className="text-xs text-slate-400">{item.url}</p>
+          <div key={item.ts} className="glass neu p-3 rounded-xl text-sm space-y-2">
+            <img src={item.thumb} className="w-full rounded-lg" alt={item.caption} />
+            <p className="line-clamp-2">{item.caption}</p>
+            <div className="flex items-center gap-2 text-xs text-slate-400 break-all">
+              <span className="flex-1">{item.url}</span>
+              <button
+                onClick={() => copyLink(item.url)}
+                className="p-2 rounded-lg bg-white/5 border border-white/10"
+                aria-label="Copy link"
+              >
+                {copied === item.url ? <Check className="w-4 h-4 text-emerald-300" /> : <Clipboard className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         ))}
       </div>

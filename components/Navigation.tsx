@@ -18,18 +18,19 @@ export default function Navigation() {
   const pathname = usePathname()
   return (
     <header className="pt-8 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link href="/" className="flex items-center gap-3 text-lg font-semibold">
           <div className="w-11 h-11 rounded-2xl glass neu border border-white/10 flex items-center justify-center">
             <Music className="w-5 h-5 text-purple-300" />
           </div>
           TikTok Downloader Pro
         </Link>
-        <div className="hidden sm:flex items-center gap-3 text-xs text-slate-300">
-          <Cloud className="w-4 h-4" /> Edge ready · Vercel & Railway
+        <div className="flex items-center gap-3 text-xs text-slate-300">
+          <Cloud className="w-4 h-4 hidden sm:block" />
+          <span className="truncate">Edge ready · Vercel & Railway</span>
         </div>
       </div>
-      <nav className="glass rounded-2xl px-4 py-3 border border-white/10 flex flex-wrap gap-2">
+      <nav className="glass rounded-2xl px-4 py-3 border border-white/10 flex flex-nowrap overflow-x-auto gap-2">
         {links.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href)
           return (
