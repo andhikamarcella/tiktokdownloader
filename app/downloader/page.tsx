@@ -20,7 +20,7 @@ export default function DownloaderPage() {
           <div className="w-2 h-2 rounded-full bg-pink-400 animate-pulse" />
           <h2 className="text-2xl font-semibold">Instagram video & photo downloader</h2>
         </div>
-        <p className="text-sm text-slate-400">Grab public reels or photo posts with direct download links powered by ddinstagram.</p>
+        <p className="text-sm text-slate-400">Grab public reels or photo posts with direct download links powered by InstaSuperSave.</p>
         <InstagramDownloader />
       </div>
     </div>

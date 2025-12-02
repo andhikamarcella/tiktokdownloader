@@ -22,10 +22,8 @@ function normalizeUrl(raw: string): string {
 
 function toDownloadable(url: string): string {
   try {
-    const parsed = new URL(url);
-    parsed.protocol = "https:";
-    parsed.hostname = "ddinstagram.com";
-    return parsed.toString();
+    const normalized = normalizeUrl(url);
+    return `https://instasupersave.com/download?url=${encodeURIComponent(normalized)}`;
   } catch (e) {
     return url;
   }
