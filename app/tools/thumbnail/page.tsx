@@ -1,19 +1,29 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Image as ImageIcon, Loader2 } from 'lucide-react'
+import { useState } from "react";
+import { Image as ImageIcon, Loader2 } from "lucide-react";
+
+type FramesResponse = {
+  best: { url: string };
+  frames: { url: string; score: number }[];
+  variants: Record<string, string>;
+};
 
 export default function ThumbnailPage() {
-  const [url, setUrl] = useState('')
-  const [frames, setFrames] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const [url, setUrl] = useState("");
+  const [frames, setFrames] = useState<FramesResponse | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const run = async () => {
-    setLoading(true)
-    const res = await fetch('/api/thumbnail/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
-    setFrames(await res.json())
-    setLoading(false)
-  }
+    setLoading(true);
+    const res = await fetch("/api/thumbnail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    setFrames((await res.json()) as FramesResponse);
+    setLoading(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -25,23 +35,28 @@ export default function ThumbnailPage() {
         </div>
       </div>
       <div className="glass p-4 rounded-2xl border border-white/10 space-y-3">
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="TikTok video URL" className="w-full glass p-2 rounded-xl" />
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="TikTok video URL"
+          className="w-full glass p-2 rounded-xl"
+        />
         <button onClick={run} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Scan frames'}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Scan frames"}
         </button>
         {frames && (
           <div className="space-y-3">
             <p className="text-sm">Best frame</p>
             <img src={frames.best.url} className="w-full rounded-xl" />
             <div className="grid sm:grid-cols-3 gap-2">
-              {frames.frames.map((f: any) => (
+              {frames.frames.map((f) => (
                 <img key={f.url} src={f.url} className="rounded-xl" />
               ))}
             </div>
-            <div className="text-xs text-slate-400">Variants: {Object.values(frames.variants).join(', ')}</div>
+            <div className="text-xs text-slate-400">Variants: {Object.values(frames.variants).join(", ")}</div>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }

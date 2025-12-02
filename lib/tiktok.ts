@@ -1,6 +1,6 @@
 export type TikTokMedia = {
-  no_wm_url: string;
-  wm_url: string;
+  video_no_wm: string;
+  video_wm: string;
   audio_url: string;
   thumbnail_url: string;
   caption: string;
@@ -10,13 +10,17 @@ export type TikTokMedia = {
   duration?: number;
   sound?: { title: string; artist?: string; album?: string };
   provider: string;
+  /** @deprecated alias maintained for backward compatibility */
+  no_wm_url?: string;
+  /** @deprecated alias maintained for backward compatibility */
+  wm_url?: string;
 };
 
 type ProviderResult = TikTokMedia;
 
 const emptyMedia: TikTokMedia = {
-  no_wm_url: "",
-  wm_url: "",
+  video_no_wm: "",
+  video_wm: "",
   audio_url: "",
   thumbnail_url: "",
   caption: "",
@@ -37,7 +41,8 @@ async function fetchJson(url: string) {
 function normalize(data: Record<string, any>, provider: string): ProviderResult {
   const caption = data.desc || data.caption || data.title || "";
   const hashtags = extractHashtags(caption);
-  const noWatermark =
+  const videoNoWatermark =
+    data.video_no_wm ||
     data.no_wm_url ||
     data.nowm ||
     data.nowatermark ||
@@ -46,7 +51,8 @@ function normalize(data: Record<string, any>, provider: string): ProviderResult 
     data.data?.play ||
     data.data?.playUrl ||
     "";
-  const watermark =
+  const videoWatermark =
+    data.video_wm ||
     data.wm_url ||
     data.wmplay ||
     data.watermark ||
@@ -55,10 +61,11 @@ function normalize(data: Record<string, any>, provider: string): ProviderResult 
     data.video?.wmplay_url ||
     data.data?.wmplay ||
     "";
+
   return {
     provider,
-    no_wm_url: noWatermark,
-    wm_url: watermark,
+    video_no_wm: videoNoWatermark,
+    video_wm: videoWatermark,
     audio_url: data.audio_url || data.music || data.music_url || data.musicUrl || data.data?.music || "",
     thumbnail_url:
       data.thumbnail_url ||
@@ -86,6 +93,9 @@ function normalize(data: Record<string, any>, provider: string): ProviderResult 
         }
       : undefined,
     music_title: data.music_title || data.music_info?.title || data.sound?.title,
+    // legacy aliases for older UI consumption
+    no_wm_url: videoNoWatermark,
+    wm_url: videoWatermark,
   };
 }
 
@@ -94,8 +104,8 @@ async function fromTikMate(url: string): Promise<ProviderResult> {
   const data = await fetchJson(`${process.env.TIKMATE_API_URL}?url=${encodeURIComponent(url)}`);
   return normalize(
     {
-      no_wm_url: data?.video?.play_url || data?.play_url,
-      wm_url: data?.video?.wmplay_url || data?.wmplay_url,
+      video_no_wm: data?.video?.play_url || data?.play_url,
+      video_wm: data?.video?.wmplay_url || data?.wmplay_url,
       audio_url: data?.music_url || data?.music?.url,
       cover: data?.cover_url || data?.video?.cover,
       desc: data?.desc,
@@ -114,8 +124,8 @@ async function fromTikwm(url: string): Promise<ProviderResult> {
   const payload = data?.data ?? data;
   return normalize(
     {
-      no_wm_url: payload?.play || payload?.play_url,
-      wm_url: payload?.wmplay || payload?.wmplay_url,
+      video_no_wm: payload?.play || payload?.play_url,
+      video_wm: payload?.wmplay || payload?.wmplay_url,
       audio_url: payload?.music || payload?.music_url,
       cover: payload?.cover || payload?.cover_hd,
       desc: payload?.title || payload?.desc,
@@ -134,8 +144,8 @@ async function fromTTSave(url: string): Promise<ProviderResult> {
   const payload = data?.data ?? data;
   return normalize(
     {
-      no_wm_url: payload?.play || payload?.nowm,
-      wm_url: payload?.wmplay,
+      video_no_wm: payload?.play || payload?.nowm,
+      video_wm: payload?.wmplay,
       audio_url: payload?.music,
       cover: payload?.cover,
       desc: payload?.desc || payload?.title,
@@ -153,7 +163,7 @@ export async function getVideoInfo(tiktokUrl: string): Promise<ProviderResult> {
   for (const provider of providers) {
     try {
       const result = await provider(tiktokUrl);
-      if (result.no_wm_url || result.wm_url) {
+      if (result.video_no_wm || result.video_wm) {
         return result;
       }
     } catch (err) {

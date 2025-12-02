@@ -79,6 +79,10 @@ export default function DownloaderForm() {
     };
   }, [data]);
 
+  const videoSource = data?.video_no_wm || data?.video_wm || data?.no_wm_url || data?.wm_url || "";
+  const noWatermarkUrl = data?.video_no_wm || data?.no_wm_url || "";
+  const watermarkUrl = data?.video_wm || data?.wm_url || "";
+
   return (
     <div className="space-y-4">
       <div className="glass rounded-2xl p-4 border border-white/10">
@@ -108,13 +112,13 @@ export default function DownloaderForm() {
         <div className="grid md:grid-cols-3 gap-4">
           <div className="glass rounded-2xl p-4 border border-white/10 space-y-3">
             <div className="aspect-video rounded-xl overflow-hidden bg-black/50">
-              <video src={data.no_wm_url || data.wm_url} className="w-full h-full object-cover" autoPlay loop muted controls />
+              <video src={videoSource} className="w-full h-full object-cover" autoPlay loop muted controls />
             </div>
             <div className="flex gap-2">
-              <a href={data.no_wm_url} className="flex-1 text-center py-2 rounded-xl bg-white/10">
+              <a href={noWatermarkUrl} className="flex-1 text-center py-2 rounded-xl bg-white/10">
                 No watermark
               </a>
-              <a href={data.wm_url} className="flex-1 text-center py-2 rounded-xl bg-white/5">
+              <a href={watermarkUrl} className="flex-1 text-center py-2 rounded-xl bg-white/5">
                 Watermark
               </a>
               <a href={data.audio_url} className="flex-1 text-center py-2 rounded-xl bg-emerald-500/20">
@@ -198,49 +202,35 @@ export default function DownloaderForm() {
           </div>
         </div>
       )}
-
-      <div className="glass rounded-2xl p-4 border border-white/10">
-        <h3 className="font-semibold mb-2">Smart history</h3>
-        <div className="grid sm:grid-cols-3 gap-3">
-          {history.map((item) => (
-            <div key={item.ts} className="glass neu p-3 rounded-xl text-sm">
-              <div className="flex items-center gap-3">
-                <img src={item.thumb} className="w-12 h-12 rounded-lg object-cover" />
-                <div>
-                  <p className="line-clamp-2">{item.caption}</p>
-                  <p className="text-xs text-slate-400">{new Date(item.ts).toLocaleTimeString()}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
 
 function MusicDetector({ url }: { url: string }) {
+  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
-  const run = async () => {
+  const detect = async () => {
+    setLoading(true);
     const res = await fetch("/api/music/detect", {
       method: "POST",
-      body: JSON.stringify({ url }),
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
     });
     setResult(await res.json());
+    setLoading(false);
   };
 
   return (
     <div className="space-y-2 text-sm">
-      <button onClick={run} className="px-3 py-2 rounded-xl bg-white/10">
-        Detect music
+      <button onClick={detect} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2">
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Detect music"}
       </button>
       {result && (
-        <div className="text-xs space-y-1">
-          <p>Fingerprint: {result.fingerprint?.hash}</p>
-          <p>AudD: {result.audd?.result?.title ?? "n/a"}</p>
-          <p>YouTube: {result.youtube?.items?.[0]?.snippet?.title ?? "n/a"}</p>
+        <div className="glass neu p-2 rounded-lg">
+          <p className="font-semibold">{result.title}</p>
+          <p className="text-xs text-slate-400">{result.album}</p>
+          <p className="text-xs">Score: {result.score}</p>
         </div>
       )}
     </div>
@@ -248,44 +238,50 @@ function MusicDetector({ url }: { url: string }) {
 }
 
 function CloudSaves({ media }: { media: TikTokMedia }) {
-  const send = async (provider: string) => {
-    console.info(`Queue to ${provider}`, media.no_wm_url || media.wm_url);
-    alert(`Ready to push ${provider} via your own token exchange.`);
+  const save = (provider: string) => {
+    console.info(`Queue to ${provider}`, media.video_no_wm || media.video_wm);
+    alert(`Stub: would upload to ${provider}`);
   };
   return (
-    <div className="flex flex-wrap gap-2">
-      {["google drive", "dropbox", "telegram"].map((p) => (
-        <button key={p} onClick={() => send(p)} className="px-3 py-2 rounded-xl bg-white/10 capitalize">
-          {p}
-        </button>
-      ))}
+    <div className="flex gap-2">
+      <button onClick={() => save("drive")} className="flex-1 py-2 rounded-xl bg-white/10 text-sm">
+        Google Drive
+      </button>
+      <button onClick={() => save("dropbox")} className="flex-1 py-2 rounded-xl bg-white/10 text-sm">
+        Dropbox
+      </button>
+      <button onClick={() => save("telegram")} className="flex-1 py-2 rounded-xl bg-white/10 text-sm">
+        Telegram
+      </button>
     </div>
   );
 }
 
 function ThumbnailFrames({ url }: { url: string }) {
   const [frames, setFrames] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
   const run = async () => {
-    const res = await fetch("/api/thumbnail/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
+    setLoading(true);
+    const res = await fetch("/api/thumbnail", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
     setFrames(await res.json());
+    setLoading(false);
   };
+
   return (
-    <div className="space-y-2 text-xs">
-      <button onClick={run} className="px-3 py-2 rounded-xl bg-white/10">
-        Generate frames
+    <div className="space-y-2 text-sm">
+      <button onClick={run} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2">
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate frames"}
       </button>
       {frames && (
         <div className="space-y-2">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-2">
             {frames.frames.map((f: any) => (
-              <img key={f.url} src={f.url} className="rounded-lg" />
+              <img key={f.url} src={f.url} className="w-24 h-32 object-cover rounded-lg" />
             ))}
           </div>
-          <p>Best: {frames.best.url}</p>
+          <p className="text-xs text-slate-400">Best: {frames.best.url}</p>
+          <p className="text-xs text-slate-400">Variants: {Object.values(frames.variants).join(", ")}</p>
         </div>
       )}
     </div>

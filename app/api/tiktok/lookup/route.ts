@@ -14,8 +14,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       media: {
-        no_wm_url: media.no_wm_url,
-        wm_url: media.wm_url,
+        video_no_wm: media.video_no_wm,
+        video_wm: media.video_wm,
         audio_url: media.audio_url,
         thumbnail_url: media.thumbnail_url,
         caption: media.caption,
@@ -25,6 +25,9 @@ export async function POST(request: Request) {
         duration: media.duration,
         provider: media.provider,
         sound: media.sound,
+        // legacy aliases to avoid breaking older UI callers
+        no_wm_url: media.video_no_wm,
+        wm_url: media.video_wm,
       },
       captions,
     });

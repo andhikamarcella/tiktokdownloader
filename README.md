@@ -19,11 +19,11 @@ Next.js 14 (App Router) Edge-ready TikTok downloader with AI caption tools, musi
 4. Deploy to Vercel/Railway/Render with Edge runtime support.
 
 ## API routes
-- `/api/tiktok/lookup` — TikTok lookup with provider fallback + caption suite, returns `no_wm_url`, `wm_url`, `audio_url`, `thumbnail_url`, `caption`, `hashtags`, `music_title`.
+- `/api/tiktok/lookup` — TikTok lookup with provider fallback + caption suite, returns `video_no_wm`, `video_wm`, `audio_url`, `thumbnail_url`, `caption`, `hashtags`, `music_title` (plus legacy `no_wm_url`, `wm_url`).
 - `/api/ai/clean|summarize|rewrite|translate` — Groq/Gemini caption helpers.
 - `/api/music/detect` — AudD-first audio recognition with ACRCloud placeholder then YouTube fallback.
 - `/api/convert/audio|gif|trim` — informational endpoints for client ffmpeg usage.
-- `/api/thumbnail/generate` — build frame variants (Cloudinary-ready).
+- `/api/thumbnail` — build frame variants (Cloudinary-ready).
 
 ## UI routes
 - `/` (main downloader), `/tools/trim`, `/tools/convert`, `/tools/caption-ai`, `/tools/thumbnail`, `/history`.
