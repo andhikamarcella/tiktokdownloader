@@ -129,7 +129,7 @@ export default function HeroPreview() {
             Next
           </button>
           <select
-            className="px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-sm"
+            className="px-3 py-2 rounded-xl bg-slate-900/70 text-slate-100 border border-white/20 text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
             value={currentIndex}
             onChange={(event) => setCurrentIndex(Number(event.target.value))}
           >

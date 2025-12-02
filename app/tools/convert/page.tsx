@@ -81,7 +81,11 @@ export default function ConvertPage() {
       <div className="glass p-4 rounded-2xl border border-white/10 space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input type="file" accept="video/mp4" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
-          <select value={format} onChange={(e) => setFormat(e.target.value)} className="glass p-2 rounded-xl flex-1 min-w-[160px]">
+          <select
+            value={format}
+            onChange={(e) => setFormat(e.target.value)}
+            className="glass p-2 rounded-xl flex-1 min-w-[160px] bg-slate-900/70 text-slate-100 border border-white/15 focus:outline-none focus:ring-2 focus:ring-white/30"
+          >
             {formats.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}

@@ -39,7 +39,11 @@ export default function CaptionAIPage() {
       </div>
       <div className="glass p-4 rounded-2xl border border-white/10 space-y-3">
         <textarea value={caption} onChange={(e) => setCaption(e.target.value)} className="w-full glass p-3 rounded-xl" rows={5} placeholder="Paste caption from TikTok" />
-        <select value={style} onChange={(e) => setStyle(e.target.value)} className="glass p-2 rounded-xl">
+        <select
+          value={style}
+          onChange={(e) => setStyle(e.target.value)}
+          className="glass p-2 rounded-xl bg-slate-900/70 text-slate-100 border border-white/15 focus:outline-none focus:ring-2 focus:ring-white/30"
+        >
           <option value="aesthetic">Aesthetic</option>
           <option value="formal">Formal</option>
           <option value="funny">Funny</option>
