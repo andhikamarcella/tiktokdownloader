@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36";
+const WORKER_URL = "https://blue-mode-1265.andhikamarcellafernanda.workers.dev/?url=";
 
 type MediaType = "video" | "image" | "gallery" | "gif" | "unknown";
 
@@ -21,18 +22,30 @@ const decodeUrl = (value?: string) => value?.replace(/&amp;/g, "&") ?? "";
 
 const ensureAbsolute = (url: string) => (url.startsWith("http") ? url : `https://${url}`);
 
+const proxiedFetch = (target: string, init?: RequestInit) => {
+  const proxyUrl = `${WORKER_URL}${encodeURIComponent(target)}`;
+  return fetch(proxyUrl, {
+    ...init,
+    headers: {
+      "User-Agent": USER_AGENT,
+      ...(init?.headers || {}),
+    },
+    redirect: "follow",
+  });
+};
+
 export async function resolveRedditUrl(input: string): Promise<string> {
   const target = ensureAbsolute(input).replace(/\.json($|\?.*)/i, "").replace(/\/$/, "");
   try {
-    const res = await fetch(target, {
+    const res = await proxiedFetch(target, {
       method: "GET",
-      redirect: "follow",
       headers: {
-        "User-Agent": USER_AGENT,
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });
 
-    return (res.url || target).replace(/\/$/, "");
+    const finalUrl = res.headers.get("x-final-url");
+    return (finalUrl || target).replace(/\/$/, "");
   } catch {
     return target;
   }
@@ -42,16 +55,15 @@ export async function fetchRedditJSON(postUrl: string) {
   const clean = postUrl.replace(/\.json($|\?.*)/i, "").replace(/\/$/, "");
   const endpoint = `${clean}.json`;
 
-  const res = await fetch(endpoint, {
+  const res = await proxiedFetch(endpoint, {
     headers: {
-      "User-Agent": USER_AGENT,
       Accept: "application/json, text/plain, */*",
     },
-    redirect: "follow",
   });
 
   if (!res.ok) {
-    throw new Error(`Reddit lookup failed: ${res.status}`);
+    const body = await res.text();
+    throw new Error(`Proxy lookup failed: ${res.status} ${body?.slice(0, 160)}`.trim());
   }
 
   return res.json();
@@ -109,7 +121,7 @@ export function extractMedia(json: any, resolvedUrl: string): ApiResponse {
     audio: null,
     image: null,
     gallery: [],
-    resolvedUrl,
+    resolvedUrl: post?.permalink ? `https://www.reddit.com${post.permalink}` : resolvedUrl,
     raw: json,
   };
 

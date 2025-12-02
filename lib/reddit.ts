@@ -60,7 +60,28 @@ type RedditPost = {
   media?: { reddit_video?: RedditVideo };
 };
 
+const WORKER_URL = "https://blue-mode-1265.andhikamarcellafernanda.workers.dev/?url=";
+
 const decodeUrl = (url?: string) => url?.replace(/&amp;/g, "&") ?? "";
+
+const proxiedFetch = async (target: string, init?: RequestInit) => {
+  const proxyUrl = `${WORKER_URL}${encodeURIComponent(target)}`;
+  const baseHeaders = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+  } as const;
+
+  const mergedHeaders = {
+    ...baseHeaders,
+    ...(init?.headers || {}),
+  } as Record<string, string>;
+
+  return fetch(proxyUrl, {
+    ...init,
+    headers: mergedHeaders,
+    redirect: "follow",
+  });
+};
 
 const guessTypeFromUrl = (url: string, fallback: RedditMediaItem["type"]) => {
   if (/v\.redd\.it|\.mp4($|\?)/i.test(url)) return "video" as const;
@@ -167,8 +188,6 @@ async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPo
   const trimUrl = url.replace(/\?.*$/, "").replace(/\.json$/, "").replace(/\/$/, "");
   const sessionCookie = auth?.sessionCookie?.trim();
   const headers = {
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     Accept: "application/json, text/plain, */*",
     "Accept-Language": "en-US,en;q=0.9",
     Referer: "https://www.reddit.com/",
@@ -178,14 +197,14 @@ async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPo
 
   const resolvedUrl = await (async () => {
     try {
-      const res = await fetch(trimUrl.startsWith("http") ? trimUrl : `https://${trimUrl}`, {
-        method: "HEAD",
-        redirect: "follow",
+      const res = await proxiedFetch(trimUrl.startsWith("http") ? trimUrl : `https://${trimUrl}`, {
+        method: "GET",
         headers,
         cache: "no-store",
       });
 
-      return res.url ? res.url.replace(/\/$/, "") : trimUrl;
+      const finalUrl = res.headers.get("x-final-url");
+      return finalUrl ? finalUrl.replace(/\/$/, "") : trimUrl;
     } catch {
       return trimUrl;
     }
@@ -224,10 +243,9 @@ async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPo
 
   for (const endpoint of candidates) {
     try {
-      const res = await fetch(endpoint, {
+      const res = await proxiedFetch(endpoint, {
         headers,
         cache: "no-store",
-        redirect: "follow",
       });
 
       if (!res.ok) {
