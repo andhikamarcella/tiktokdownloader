@@ -67,7 +67,7 @@ export default function ConvertPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Repeat className="w-5 h-5" />
         <div>
           <p className="text-sm text-slate-300">Convert formats with client-side ffmpeg.wasm</p>
@@ -87,10 +87,10 @@ export default function ConvertPage() {
         </div>
         <p className="text-xs text-slate-400">All conversions run locally with ffmpeg.wasm 0.12.2 (client-only).</p>
         <div className="flex gap-3 flex-wrap">
-          <button onClick={convertWithFFmpeg} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2" disabled={loading || !file}>
+          <button onClick={convertWithFFmpeg} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2 w-full sm:w-auto justify-center" disabled={loading || !file}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Convert"}
           </button>
-          <button onClick={handleExtract} className="px-4 py-2 rounded-xl bg-white/5" disabled={loading || !file}>
+          <button onClick={handleExtract} className="px-4 py-2 rounded-xl bg-white/5 w-full sm:w-auto" disabled={loading || !file}>
             Extract audio (M4A)
           </button>
         </div>

@@ -21,20 +21,20 @@ const links = [
 export default function Navigation({ isAuthed = false }: NavigationProps) {
   const pathname = usePathname()
   return (
-    <header className="pt-8 flex flex-col gap-4">
+    <header className="pt-6 flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Link href="/" className="flex items-center gap-3 text-lg font-semibold">
+        <Link href="/" className="flex items-center gap-3 text-lg font-semibold w-full sm:w-auto">
           <div className="w-11 h-11 rounded-2xl glass neu border border-white/10 flex items-center justify-center">
             <Music className="w-5 h-5 text-purple-300" />
           </div>
           TikTok Downloader Pro
         </Link>
-        <div className="flex items-center gap-3 text-xs text-slate-300 flex-wrap justify-end">
+        <div className="flex items-center gap-2 text-xs text-slate-300 flex-wrap justify-end w-full sm:w-auto">
           <Cloud className="w-4 h-4 hidden sm:block" />
           <span className="truncate">Edge ready · Vercel & Railway</span>
           <Link
             href={isAuthed ? '/api/auth/logout' : '/api/auth/tiktok'}
-            className={`px-3 py-2 rounded-xl border border-white/10 ${
+            className={`px-3 py-2 rounded-xl border border-white/10 w-full sm:w-auto text-center ${
               isAuthed
                 ? 'bg-white/10 hover:bg-white/5 text-white'
                 : 'bg-gradient-to-r from-purple-500 to-sky-400 text-slate-900 font-semibold'
@@ -44,7 +44,7 @@ export default function Navigation({ isAuthed = false }: NavigationProps) {
           </Link>
         </div>
       </div>
-      <nav className="glass rounded-2xl px-4 py-3 border border-white/10 flex flex-nowrap overflow-x-auto gap-2">
+      <nav className="glass rounded-2xl px-3 sm:px-4 py-3 border border-white/10 flex flex-nowrap overflow-x-auto gap-2 scrollbar-thin">
         {links.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href)
           return (

@@ -40,7 +40,7 @@ export default function TrimPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Scissors className="w-5 h-5" />
         <div>
           <p className="text-sm text-slate-300">Trim before download (client ffmpeg.wasm)</p>
@@ -66,7 +66,7 @@ export default function TrimPage() {
             className="glass p-2 rounded-xl flex-1"
             placeholder="End (s)"
           />
-          <button onClick={handleTrim} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2" disabled={loading || !file}>
+          <button onClick={handleTrim} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2 w-full sm:w-auto justify-center" disabled={loading || !file}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Trim & preview"}
           </button>
         </div>

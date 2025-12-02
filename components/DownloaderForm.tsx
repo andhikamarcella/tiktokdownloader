@@ -113,25 +113,32 @@ export default function DownloaderForm() {
 
   return (
     <div className="space-y-4">
-      <div className="glass rounded-2xl p-4 border border-white/10">
-        <div className="flex gap-3 items-center">
-          <Link2 className="w-5 h-5 text-purple-300" />
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="Paste any TikTok link — we auto-detect redirects"
-            className="bg-transparent flex-1 text-lg placeholder:text-slate-400"
-          />
-          <button onClick={autoDetect} className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-sm">
-            Auto detect
-          </button>
-          <button
-            disabled={!url || loading}
-            onClick={fetchData}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-sky-400 text-slate-900 font-semibold flex items-center gap-2"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download
-          </button>
+      <div className="glass rounded-2xl p-4 sm:p-5 border border-white/10">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+          <div className="flex items-center gap-3 w-full">
+            <Link2 className="w-5 h-5 text-purple-300 shrink-0" />
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Paste any TikTok link — we auto-detect redirects"
+              className="bg-transparent flex-1 min-w-0 text-base sm:text-lg placeholder:text-slate-400"
+            />
+          </div>
+          <div className="flex flex-col w-full gap-2 sm:flex-row sm:w-auto sm:items-center">
+            <button
+              onClick={autoDetect}
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-sm w-full sm:w-auto"
+            >
+              Auto detect
+            </button>
+            <button
+              disabled={!url || loading}
+              onClick={fetchData}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-sky-400 text-slate-900 font-semibold flex items-center justify-center gap-2 w-full sm:w-auto"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download
+            </button>
+          </div>
         </div>
         {error && <p className="text-sm text-rose-300 mt-2">{error}</p>}
       </div>
