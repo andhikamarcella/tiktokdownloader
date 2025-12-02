@@ -58,6 +58,7 @@ type RedditVideo = {
   hls_url?: string;
   width?: number;
   height?: number;
+  is_gif?: boolean;
 };
 
 type RedditPost = {
