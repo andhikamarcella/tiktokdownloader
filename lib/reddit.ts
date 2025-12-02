@@ -255,6 +255,43 @@ async function resolveShortlink(url: string, headers: Record<string, string>) {
   return target;
 }
 
+const unique = <T,>(list: T[]) => Array.from(new Set(list));
+
+const buildJsonCandidates = (resolvedUrl: string) => {
+  const base = stripJsonAndTrailingSlash(resolvedUrl);
+
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(base.startsWith("http") ? base : `https://${base}`);
+  } catch {
+    // if URL parsing fails, fall back to string-based candidates
+  }
+
+  const candidates: string[] = [];
+
+  if (parsed) {
+    const pathWithQuery = `${parsed.pathname}${parsed.search}`.replace(/\/$/, "");
+    const hostNormalized = parsed.hostname.replace(/^old\./, "").replace(/^www\./, "");
+
+    // Canonical + raw JSON
+    candidates.push(`https://www.${hostNormalized}${pathWithQuery}.json?raw_json=1`);
+
+    // old.reddit fallback
+    candidates.push(`https://old.${hostNormalized}${pathWithQuery}.json?raw_json=1`);
+
+    // comment-based path derived from ID
+    const parts = pathWithQuery.split("/").filter(Boolean);
+    const id = parts[parts.length - 1];
+    if (id) {
+      candidates.push(`https://www.reddit.com/comments/${id}.json?raw_json=1`);
+    }
+  } else {
+    candidates.push(`${base}.json?raw_json=1`);
+  }
+
+  return unique(candidates);
+};
+
 async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPost> {
   const sessionCookie = auth?.sessionCookie?.trim();
   const headers = {
@@ -266,21 +303,37 @@ async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPo
   } as const;
 
   const resolvedUrl = await resolveShortlink(url, headers);
-  const jsonUrl = `${stripJsonAndTrailingSlash(resolvedUrl)}.json?raw_json=1`;
+  const candidates = buildJsonCandidates(resolvedUrl);
+  const errors: string[] = [];
+  let json: RedditListing | RedditListing[] | undefined;
 
-  const res = await proxiedFetch(jsonUrl, {
-    headers,
-    cache: "no-store",
-  });
+  for (const candidate of candidates) {
+    try {
+      const res = await proxiedFetch(candidate, {
+        headers,
+        cache: "no-store",
+      });
 
-  if (!res.ok) {
-    const body = await res.text();
-    const cleanBody = body?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-    const snippet = cleanBody ? ` ${cleanBody.slice(0, 160)}` : "";
-    throw new Error(`Proxy lookup failed: ${res.status}${snippet}`);
+      if (!res.ok) {
+        const body = await res.text();
+        const cleanBody = body?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+        const snippet = cleanBody ? ` ${cleanBody.slice(0, 160)}` : "";
+        errors.push(`${res.status}${snippet}`.trim());
+        continue;
+      }
+
+      json = (await res.json()) as RedditListing | RedditListing[];
+      break;
+    } catch (err) {
+      errors.push((err as Error).message || "Unknown proxy error");
+    }
   }
 
-  const json = (await res.json()) as RedditListing | RedditListing[];
+  if (!json) {
+    const suffix = errors.length ? ` (${unique(errors).join(" | ")})` : "";
+    throw new Error(`Proxy lookup failed after fallbacks${suffix}`);
+  }
+
   const post = Array.isArray(json)
     ? json[0]?.data?.children?.[0]?.data
     : json?.data?.children?.[0]?.data;
