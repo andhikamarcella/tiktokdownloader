@@ -1,5 +1,6 @@
 import DownloaderForm from '../../components/DownloaderForm'
 import InstagramDownloader from '../../components/InstagramDownloader'
+import RedditDownloader from '../../components/RedditDownloader'
 
 export const dynamic = 'force-static'
 
@@ -22,6 +23,15 @@ export default function DownloaderPage() {
         </div>
         <p className="text-sm text-slate-400">Grab public reels, photos, or carousels via the SaveInsta RapidAPI backend.</p>
         <InstagramDownloader />
+      </div>
+
+      <div className="pt-2 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+          <h2 className="text-2xl font-semibold">Reddit photo & GIF downloader</h2>
+        </div>
+        <p className="text-sm text-slate-400">Download hosted Reddit images, GIFs, and galleries without leaving the app.</p>
+        <RedditDownloader />
       </div>
     </div>
   )
