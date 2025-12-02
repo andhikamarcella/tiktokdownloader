@@ -27,6 +27,7 @@ export default function DownloaderForm() {
   const [captions, setCaptions] = useState<CaptionSuite | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingVideo, setDownloadingVideo] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("tt-history");
@@ -83,6 +84,33 @@ export default function DownloaderForm() {
   const noWatermarkUrl = data?.video_no_wm || data?.no_wm_url || "";
   const watermarkUrl = data?.video_wm || data?.wm_url || "";
 
+  const handleDirectDownload = async (preferNoWatermark = true) => {
+    const source = preferNoWatermark && noWatermarkUrl ? noWatermarkUrl : watermarkUrl || videoSource;
+    if (!source) {
+      setError("No downloadable video source found.");
+      return;
+    }
+    setDownloadingVideo(true);
+    setError(null);
+    try {
+      const res = await fetch(source);
+      if (!res.ok) throw new Error("Failed to fetch video file");
+      const blob = await res.blob();
+      const urlObject = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = urlObject;
+      anchor.download = preferNoWatermark ? "tiktok-no-watermark.mp4" : "tiktok-watermark.mp4";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(urlObject);
+    } catch (err: unknown) {
+      setError((err as Error).message);
+    } finally {
+      setDownloadingVideo(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="glass rounded-2xl p-4 border border-white/10">
@@ -114,16 +142,44 @@ export default function DownloaderForm() {
             <div className="aspect-video rounded-xl overflow-hidden bg-black/50">
               <video src={videoSource} className="w-full h-full object-cover" autoPlay loop muted controls />
             </div>
-            <div className="flex gap-2">
-              <a href={noWatermarkUrl} className="flex-1 text-center py-2 rounded-xl bg-white/10">
+            <div className="flex gap-2 flex-wrap">
+              <a
+                href={noWatermarkUrl}
+                download="tiktok-no-watermark.mp4"
+                className="flex-1 min-w-[140px] text-center py-2 rounded-xl bg-white/10"
+              >
                 No watermark
               </a>
-              <a href={watermarkUrl} className="flex-1 text-center py-2 rounded-xl bg-white/5">
+              <a
+                href={watermarkUrl}
+                download="tiktok-watermark.mp4"
+                className="flex-1 min-w-[140px] text-center py-2 rounded-xl bg-white/5"
+              >
                 Watermark
               </a>
-              <a href={data.audio_url} className="flex-1 text-center py-2 rounded-xl bg-emerald-500/20">
+              <a
+                href={data.audio_url}
+                download="tiktok-audio.m4a"
+                className="flex-1 min-w-[140px] text-center py-2 rounded-xl bg-emerald-500/20"
+              >
                 Audio
               </a>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => handleDirectDownload(true)}
+                disabled={downloadingVideo}
+                className="flex-1 min-w-[180px] py-2 rounded-xl bg-gradient-to-r from-sky-400 to-purple-500 text-slate-900 font-semibold flex items-center justify-center gap-2"
+              >
+                {downloadingVideo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download video
+              </button>
+              <button
+                onClick={() => handleDirectDownload(false)}
+                disabled={downloadingVideo}
+                className="px-3 py-2 rounded-xl bg-white/10 text-sm"
+              >
+                Use watermark source
+              </button>
             </div>
             <div className="glass neu p-3 rounded-xl">
               <p className="text-sm text-slate-300">{data.caption}</p>
