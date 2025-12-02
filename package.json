@@ -10,7 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ffmpeg/ffmpeg": "0.12.2",
+    "@ffmpeg/ffmpeg": "0.10.0",
     "@ffmpeg/util": "0.12.1",
     "cloudinary": "1.41.3",
     "jszip": "3.10.1",
