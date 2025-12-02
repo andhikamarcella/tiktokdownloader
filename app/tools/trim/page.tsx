@@ -23,6 +23,7 @@ export default function TrimPage() {
       const duration = Math.max(end - start, 1);
       await ffmpeg.run("-i", "input.mp4", "-ss", `${start}`, "-t", `${duration}`, "-c", "copy", "trimmed.mp4");
       const trimmed = ffmpeg.FS("readFile", "trimmed.mp4");
+      if (!(trimmed instanceof Uint8Array)) throw new Error("Failed to read trimmed video");
       setOutput(URL.createObjectURL(new Blob([trimmed.buffer], { type: "video/mp4" })));
     } catch (err: unknown) {
       setError((err as Error).message);

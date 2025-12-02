@@ -9,6 +9,8 @@ declare module "@ffmpeg/ffmpeg" {
     isLoaded(): boolean;
     load(options?: { corePath?: string; wasmBinary?: Uint8Array }): Promise<void>;
     run(...args: string[]): Promise<void>;
+    FS(method: "writeFile", path: string, data: Uint8Array | string): void;
+    FS(method: "readFile", path: string): Uint8Array;
     FS(method: string, path: string, data?: Uint8Array | string): Uint8Array | void;
   }
 

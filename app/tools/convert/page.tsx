@@ -28,10 +28,12 @@ export default function ConvertPage() {
       if (format === "mp3") {
         await ffmpeg.run("-i", "input.mp4", "-q:a", "0", "-map", "a", "output.mp3");
         const data = ffmpeg.FS("readFile", "output.mp3");
+        if (!(data instanceof Uint8Array)) throw new Error("Failed to read converted audio");
         blob = new Blob([data.buffer], { type: "audio/mpeg" });
       } else {
         await ffmpeg.run("-i", "input.mp4", "-vf", "fps=12,scale=360:-1:flags=lanczos", "-t", "8", "output.gif");
         const data = ffmpeg.FS("readFile", "output.gif");
+        if (!(data instanceof Uint8Array)) throw new Error("Failed to read converted gif");
         blob = new Blob([data.buffer], { type: "image/gif" });
       }
       setOutput(URL.createObjectURL(blob));
