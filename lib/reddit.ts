@@ -344,7 +344,8 @@ export async function fetchRedditMedia(url: string, auth?: RedditAuth): Promise<
       image: null,
       gallery: [],
     };
-    response.type = redditVideo?.is_gif ? "gif" : "video";
+    const isGif = Boolean(redditVideo && "is_gif" in redditVideo && redditVideo.is_gif);
+    response.type = isGif ? "gif" : "video";
     return response;
   }
 
