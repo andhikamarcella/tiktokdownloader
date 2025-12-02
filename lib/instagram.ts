@@ -17,19 +17,37 @@ function toDownloadable(url: string): string {
   }
 }
 
-export async function fetchInstagramMedia(url: string): Promise<InstagramMedia> {
-  const oembed = await fetch(
-    `https://www.instagram.com/oembed/?url=${encodeURIComponent(url)}&omitscript=true`
-  );
-  if (!oembed.ok) {
-    throw new Error("Failed to fetch Instagram metadata");
-  }
-  const meta = await oembed.json();
-  const isVideo =
-    (meta?.html as string | undefined)?.includes("video") ||
+function guessIsVideo(metaHtml: string | undefined, url: string): boolean {
+  return (
+    (metaHtml ?? "").includes("video") ||
     url.includes("/reel") ||
     url.includes("/tv") ||
-    url.includes("/video");
+    url.includes("/video") ||
+    url.includes("/reels")
+  );
+}
+
+export async function fetchInstagramMedia(url: string): Promise<InstagramMedia> {
+  let meta: any = null;
+  try {
+    const oembed = await fetch(
+      `https://www.instagram.com/oembed/?url=${encodeURIComponent(url)}&omitscript=true`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        },
+        next: { revalidate: 60 },
+      }
+    );
+    if (oembed.ok) {
+      meta = await oembed.json();
+    }
+  } catch (error) {
+    console.warn("Instagram oEmbed fallback", error);
+  }
+
+  const isVideo = guessIsVideo(meta?.html as string | undefined, url);
 
   return {
     sourceUrl: url,
