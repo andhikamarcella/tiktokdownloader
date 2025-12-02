@@ -1,30 +1,35 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Loader2, Scissors } from 'lucide-react'
-import { runTrim } from '../../../lib/ffmpeg'
+import { useState } from "react";
+import { fetchFile } from "@ffmpeg/ffmpeg";
+import { Loader2, Scissors } from "lucide-react";
+import { ensureFFmpegLoaded, ffmpeg } from "../../../lib/ffmpeg";
 
 export default function TrimPage() {
-  const [file, setFile] = useState<File | null>(null)
-  const [start, setStart] = useState(0)
-  const [end, setEnd] = useState(5)
-  const [loading, setLoading] = useState(false)
-  const [output, setOutput] = useState<string>('')
-  const [error, setError] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null);
+  const [start, setStart] = useState(0);
+  const [end, setEnd] = useState(5);
+  const [loading, setLoading] = useState(false);
+  const [output, setOutput] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleTrim = async () => {
-    if (!file) return
-    setLoading(true)
-    setError(null)
+    if (!file) return;
+    setLoading(true);
+    setError(null);
     try {
-      const blob = await runTrim(file, start, end)
-      setOutput(URL.createObjectURL(blob))
+      await ensureFFmpegLoaded();
+      ffmpeg.FS("writeFile", "input.mp4", await fetchFile(file));
+      const duration = Math.max(end - start, 1);
+      await ffmpeg.run("-i", "input.mp4", "-ss", `${start}`, "-t", `${duration}`, "-c", "copy", "trimmed.mp4");
+      const trimmed = ffmpeg.FS("readFile", "trimmed.mp4");
+      setOutput(URL.createObjectURL(new Blob([trimmed.buffer], { type: "video/mp4" })));
     } catch (err: unknown) {
-      setError((err as Error).message)
+      setError((err as Error).message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -41,14 +46,12 @@ export default function TrimPage() {
           <input type="number" value={start} onChange={(e) => setStart(Number(e.target.value))} className="glass p-2 rounded-xl" />
           <input type="number" value={end} onChange={(e) => setEnd(Number(e.target.value))} className="glass p-2 rounded-xl" />
           <button onClick={handleTrim} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2" disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Trim & preview'}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Trim & preview"}
           </button>
         </div>
         {error && <p className="text-sm text-rose-300">{error}</p>}
-        {output && (
-          <video src={output} controls className="w-full rounded-xl" />
-        )}
+        {output && <video src={output} controls className="w-full rounded-xl" />}
       </div>
     </div>
-  )
+  );
 }
