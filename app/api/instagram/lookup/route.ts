@@ -8,6 +8,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing Instagram URL" }, { status: 400 });
     }
     const media = await fetchInstagramMedia(url);
+    if (!media.downloadUrl) {
+      return NextResponse.json({ error: "No downloadable media found" }, { status: 422 });
+    }
     return NextResponse.json({ media });
   } catch (error) {
     console.error("Instagram lookup failed", error);
