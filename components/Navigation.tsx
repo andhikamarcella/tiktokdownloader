@@ -13,6 +13,7 @@ const links = [
   { href: '/profile', label: 'Profile bulk', icon: LayoutPanelLeft },
   { href: '/tools/trim', label: 'Trim', icon: Scissors },
   { href: '/tools/convert', label: 'Convert', icon: Image },
+  { href: '/tools/instagram', label: 'Instagram', icon: Image },
   { href: '/tools/caption-ai', label: 'Caption AI', icon: Sparkles },
   { href: '/tools/thumbnail', label: 'Thumbnail', icon: Image },
   { href: '/history', label: 'History', icon: History }
