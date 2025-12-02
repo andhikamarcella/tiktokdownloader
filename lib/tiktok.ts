@@ -16,6 +16,23 @@ export type TikTokMedia = {
   wm_url?: string;
 };
 
+export type TikTokProfileVideo = {
+  id: string;
+  title: string;
+  cover: string;
+  download_url?: string;
+  share_url?: string;
+  create_time?: number;
+};
+
+export type TikTokUserProfile = {
+  id: string;
+  username: string;
+  displayName?: string;
+  avatar?: string;
+  followers?: number;
+};
+
 type ProviderResult = TikTokMedia;
 
 const emptyMedia: TikTokMedia = {
@@ -186,4 +203,63 @@ export async function buildThumbnailFrames(thumbnail: string) {
     landscape: thumbnail ? `${thumbnail}?tr=w_1280,h_720,c_fill` : frames[2].url,
   };
   return { best, frames, variants };
+}
+
+export async function fetchUserVideos(token: string): Promise<TikTokProfileVideo[]> {
+  const res = await fetch("https://open.tiktokapis.com/v2/video/list/", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await res.json();
+  const list: any[] = data?.data?.videos ?? data?.videos ?? [];
+  return list
+    .map((video) => {
+      const id = video.id || video.video_id || video.aweme_id || video.awemeId || "";
+      return {
+        id,
+        title: video.title || video.desc || video.description || "Untitled video",
+        cover:
+          video.cover ||
+          video.cover_url ||
+          video.cover_url_medium ||
+          video.thumbnail_url ||
+          video.origin_cover ||
+          "",
+        download_url:
+          video.download_url ||
+          video.play ||
+          video.play_url ||
+          video.playUrl ||
+          video.video_download_url,
+        share_url: video.share_url || video.shareUrl || video.link,
+        create_time: Number(video.create_time ?? video.createTime ?? Date.now()),
+      } satisfies TikTokProfileVideo;
+    })
+    .filter((v: TikTokProfileVideo) => Boolean(v.id));
+}
+
+export async function fetchUserInfo(token: string): Promise<TikTokUserProfile | null> {
+  const res = await fetch("https://open.tiktokapis.com/v2/user/info/", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await res.json();
+  const user = data?.data?.user ?? data?.user;
+  if (!user) return null;
+
+  return {
+    id: user.id || user.user_id || user.open_id || "",
+    username: user.username || user.unique_id || user.uniqueId || "",
+    displayName: user.display_name || user.displayName || user.nickname,
+    avatar: user.avatar || user.avatar_url || user.avatar_url_100 || user.avatar_larger,
+    followers: user.follower_count || user.followers || user.stats?.followerCount,
+  };
 }

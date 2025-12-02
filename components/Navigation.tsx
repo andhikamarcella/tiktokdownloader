@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Cloud, Download, History, Image, LayoutPanelLeft, Music, Scissors, Sparkles } from 'lucide-react'
 
+type NavigationProps = {
+  isAuthed?: boolean
+}
+
 const links = [
   { href: '/downloader', label: 'Downloader', icon: Download },
   { href: '/profile', label: 'Profile bulk', icon: LayoutPanelLeft },
@@ -14,7 +18,7 @@ const links = [
   { href: '/history', label: 'History', icon: History }
 ]
 
-export default function Navigation() {
+export default function Navigation({ isAuthed = false }: NavigationProps) {
   const pathname = usePathname()
   return (
     <header className="pt-8 flex flex-col gap-4">
@@ -25,9 +29,19 @@ export default function Navigation() {
           </div>
           TikTok Downloader Pro
         </Link>
-        <div className="flex items-center gap-3 text-xs text-slate-300">
+        <div className="flex items-center gap-3 text-xs text-slate-300 flex-wrap justify-end">
           <Cloud className="w-4 h-4 hidden sm:block" />
           <span className="truncate">Edge ready · Vercel & Railway</span>
+          <Link
+            href={isAuthed ? '/api/auth/logout' : '/api/auth/tiktok'}
+            className={`px-3 py-2 rounded-xl border border-white/10 ${
+              isAuthed
+                ? 'bg-white/10 hover:bg-white/5 text-white'
+                : 'bg-gradient-to-r from-purple-500 to-sky-400 text-slate-900 font-semibold'
+            }`}
+          >
+            {isAuthed ? 'Logout' : 'Login with TikTok'}
+          </Link>
         </div>
       </div>
       <nav className="glass rounded-2xl px-4 py-3 border border-white/10 flex flex-nowrap overflow-x-auto gap-2">
