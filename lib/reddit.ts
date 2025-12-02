@@ -1,6 +1,6 @@
 export type RedditMediaItem = {
   url: string;
-  type: "image" | "gif";
+  type: "image" | "gif" | "video";
   width?: number;
   height?: number;
   poster?: string;
@@ -34,6 +34,14 @@ type RedditPreview = {
   reddit_video_preview?: { fallback_url: string; width?: number; height?: number };
 };
 
+type RedditVideo = {
+  fallback_url?: string;
+  dash_url?: string;
+  hls_url?: string;
+  width?: number;
+  height?: number;
+};
+
 type RedditPost = {
   title?: string;
   author?: string;
@@ -43,11 +51,14 @@ type RedditPost = {
   media_metadata?: Record<string, RedditGalleryItem>;
   preview?: RedditPreview;
   post_hint?: string;
+  secure_media?: { reddit_video?: RedditVideo };
+  media?: { reddit_video?: RedditVideo };
 };
 
 const decodeUrl = (url?: string) => url?.replace(/&amp;/g, "&") ?? "";
 
 const guessTypeFromUrl = (url: string, fallback: RedditMediaItem["type"]) => {
+  if (/v\.redd\.it|\.mp4($|\?)/i.test(url)) return "video" as const;
   if (/\.gif($|\?)/i.test(url)) return "gif" as const;
   if (/\.(jpe?g|png|webp)($|\?)/i.test(url)) return "image" as const;
   return fallback;
@@ -62,7 +73,10 @@ const guessExtension = (url: string, fallback: string) => {
 };
 
 export function fileNameForItem(item: RedditMediaItem, idx: number) {
-  const ext = guessExtension(item.url, item.type === "gif" ? "gif" : "jpg");
+  const ext = guessExtension(
+    item.url,
+    item.type === "gif" ? "gif" : item.type === "video" ? "mp4" : "jpg",
+  );
   return `reddit-${item.type}-${idx + 1}.${ext}`;
 }
 
@@ -107,12 +121,30 @@ function extractPreviewItems(post: RedditPost): RedditMediaItem[] {
     const videoUrl = decodeUrl(preview.reddit_video_preview.fallback_url);
     items.push({
       url: videoUrl,
-      type: "gif",
+      type: "video",
       width: preview.reddit_video_preview.width,
       height: preview.reddit_video_preview.height,
       poster: items[0]?.url,
     });
   }
+
+  return items;
+}
+
+function extractRedditVideo(post: RedditPost): RedditMediaItem[] {
+  const items: RedditMediaItem[] = [];
+  const video = post.secure_media?.reddit_video || post.media?.reddit_video;
+  if (!video?.fallback_url) return items;
+
+  items.push({
+    url: decodeUrl(video.fallback_url),
+    type: "video",
+    width: video.width,
+    height: video.height,
+    poster: post.preview?.images?.[0]?.source?.url
+      ? decodeUrl(post.preview.images[0].source.url)
+      : undefined,
+  });
 
   return items;
 }
@@ -127,7 +159,7 @@ function extractDirectUrl(post: RedditPost): RedditMediaItem[] {
 }
 
 export async function fetchRedditMedia(url: string): Promise<RedditMediaResponse> {
-  const infoUrl = `https://www.reddit.com/api/info.json?url=${encodeURIComponent(url)}`;
+  const infoUrl = `https://www.reddit.com/api/info.json?raw_json=1&url=${encodeURIComponent(url)}`;
   const res = await fetch(infoUrl, {
     headers: { "User-Agent": "TikTokDownloaderPro/1.0" },
     cache: "no-store",
@@ -155,10 +187,11 @@ export async function fetchRedditMedia(url: string): Promise<RedditMediaResponse
 
   extractGalleryItems(post).forEach(pushUnique);
   extractPreviewItems(post).forEach(pushUnique);
+  extractRedditVideo(post).forEach(pushUnique);
   extractDirectUrl(post).forEach(pushUnique);
 
   if (!items.length) {
-    throw new Error("No downloadable images or GIFs detected");
+    throw new Error("No downloadable images, GIFs, or videos detected");
   }
 
   return {

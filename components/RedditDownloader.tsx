@@ -89,7 +89,7 @@ export default function RedditDownloader() {
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste Reddit post link with photos or GIFs"
+              placeholder="Paste Reddit post link with photos, GIFs, or videos"
               className="flex-1 bg-transparent placeholder:text-slate-400"
             />
             <button
@@ -120,7 +120,9 @@ export default function RedditDownloader() {
         </div>
         {error && <p className="text-sm text-rose-300">{error}</p>}
         {!error && !media && (
-          <p className="text-xs text-slate-400">Works with public Reddit posts that include hosted images, GIFs, or galleries.</p>
+          <p className="text-xs text-slate-400">
+            Works with public Reddit posts that include hosted images, GIFs, videos, or galleries.
+          </p>
         )}
       </div>
 
@@ -137,14 +139,14 @@ export default function RedditDownloader() {
             {media.items.map((item, idx) => (
               <div key={`${item.url}-${idx}`} className="space-y-3 rounded-xl border border-white/10 p-3 bg-black/30">
                 <div className="aspect-[9/16] rounded-lg overflow-hidden bg-black/60 flex items-center justify-center">
-                  {item.type === "gif" ? (
+                  {item.type === "gif" || item.type === "video" ? (
                     <video
                       src={item.url}
                       poster={item.poster}
                       className="w-full h-full object-contain"
                       controls
-                      loop
-                      muted
+                      loop={item.type === "gif"}
+                      muted={item.type === "gif"}
                       playsInline
                     />
                   ) : (

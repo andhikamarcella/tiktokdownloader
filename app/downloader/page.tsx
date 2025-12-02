@@ -28,9 +28,9 @@ export default function DownloaderPage() {
       <div className="pt-2 space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-          <h2 className="text-2xl font-semibold">Reddit photo & GIF downloader</h2>
+          <h2 className="text-2xl font-semibold">Reddit photo, GIF, & video downloader</h2>
         </div>
-        <p className="text-sm text-slate-400">Download hosted Reddit images, GIFs, and galleries without leaving the app.</p>
+        <p className="text-sm text-slate-400">Download hosted Reddit images, GIFs, videos, and galleries without leaving the app.</p>
         <RedditDownloader />
       </div>
     </div>
