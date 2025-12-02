@@ -5,40 +5,18 @@ import { Loader2, Repeat } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-type FFmpegLoaderResult = {
-  ffmpeg: any;
-  fetchFile?: (input: any) => Promise<Uint8Array>;
-};
-
 const formats = [
   { value: "mp3", label: "MP4 → MP3" },
   { value: "gif", label: "MP4 → GIF" },
 ];
 
-const loadFFmpeg = async (): Promise<FFmpegLoaderResult> => {
+const loadFFmpeg = async () => {
   if (typeof window === "undefined") {
     throw new Error("FFmpeg only runs in the browser");
   }
-  try {
-    const mod = await import("../../../lib/ffmpeg");
-    await mod.ensureFFmpegLoaded();
-    return { ffmpeg: mod.ffmpeg };
-  } catch (error) {
-    const fallback = await import("@ffmpeg/ffmpeg");
-    const create =
-      (fallback as any).createFFmpeg ??
-      (fallback as any).default?.createFFmpeg ??
-      (fallback as any).default;
-    const fetchFile = fallback.fetchFile ?? (fallback as any).default?.fetchFile;
-    if (typeof create !== "function" || typeof fetchFile !== "function") {
-      throw new Error("Unable to initialize ffmpeg.wasm. Please refresh and try again.");
-    }
-    const ffmpeg = create({ log: true });
-    if (!ffmpeg.isLoaded()) {
-      await ffmpeg.load();
-    }
-    return { ffmpeg, fetchFile };
-  }
+  const mod = await import("../../../lib/ffmpeg");
+  await mod.ensureFFmpegLoaded();
+  return { ffmpeg: mod.ffmpeg };
 };
 
 export default function ConvertPage() {
@@ -53,8 +31,8 @@ export default function ConvertPage() {
     setLoading(true);
     setError(null);
     try {
-      const { ffmpeg, fetchFile } = await loadFFmpeg();
-      const fileData = fetchFile ? await fetchFile(file) : new Uint8Array(await file.arrayBuffer());
+      const { ffmpeg } = await loadFFmpeg();
+      const fileData = new Uint8Array(await file.arrayBuffer());
       ffmpeg.FS("writeFile", "input.mp4", fileData);
       let blob: Blob;
       if (format === "mp3") {
@@ -81,22 +59,9 @@ export default function ConvertPage() {
     setLoading(true);
     setError(null);
     try {
-      try {
-        const { convertToAudio } = await import("../../../lib/ffmpeg");
-        const blob = await convertToAudio(file);
-        setOutput(URL.createObjectURL(blob));
-        return;
-      } catch (primaryError) {
-        const { ffmpeg, fetchFile } = await loadFFmpeg();
-        if (!fetchFile) {
-          throw primaryError instanceof Error ? primaryError : new Error("Unable to extract audio");
-        }
-        ffmpeg.FS("writeFile", "input.mp4", await fetchFile(file));
-        await ffmpeg.run("-i", "input.mp4", "audio.m4a");
-        const data = ffmpeg.FS("readFile", "audio.m4a");
-        if (!(data instanceof Uint8Array)) throw new Error("Failed to read extracted audio");
-        setOutput(URL.createObjectURL(new Blob([data.buffer], { type: "audio/mp4" })));
-      }
+      const { convertToAudio } = await import("../../../lib/ffmpeg");
+      const blob = await convertToAudio(file);
+      setOutput(URL.createObjectURL(blob));
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {

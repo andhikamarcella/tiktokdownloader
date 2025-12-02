@@ -5,35 +5,13 @@ import { Loader2, Scissors } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-type FFmpegLoaderResult = {
-  ffmpeg: any;
-  fetchFile?: (input: any) => Promise<Uint8Array>;
-};
-
-const loadFFmpeg = async (): Promise<FFmpegLoaderResult> => {
+const loadFFmpeg = async () => {
   if (typeof window === "undefined") {
     throw new Error("FFmpeg only runs in the browser");
   }
-  try {
-    const mod = await import("../../../lib/ffmpeg");
-    await mod.ensureFFmpegLoaded();
-    return { ffmpeg: mod.ffmpeg };
-  } catch (error) {
-    const fallback = await import("@ffmpeg/ffmpeg");
-    const create =
-      (fallback as any).createFFmpeg ??
-      (fallback as any).default?.createFFmpeg ??
-      (fallback as any).default;
-    const fetchFile = fallback.fetchFile ?? (fallback as any).default?.fetchFile;
-    if (typeof create !== "function" || typeof fetchFile !== "function") {
-      throw new Error("Unable to initialize ffmpeg.wasm. Please refresh and try again.");
-    }
-    const ffmpeg = create({ log: true });
-    if (!ffmpeg.isLoaded()) {
-      await ffmpeg.load();
-    }
-    return { ffmpeg, fetchFile };
-  }
+  const mod = await import("../../../lib/ffmpeg");
+  await mod.ensureFFmpegLoaded();
+  return { ffmpeg: mod.ffmpeg };
 };
 
 export default function TrimPage() {
@@ -49,8 +27,8 @@ export default function TrimPage() {
     setLoading(true);
     setError(null);
     try {
-      const { ffmpeg, fetchFile } = await loadFFmpeg();
-      const fileData = fetchFile ? await fetchFile(file) : new Uint8Array(await file.arrayBuffer());
+      const { ffmpeg } = await loadFFmpeg();
+      const fileData = new Uint8Array(await file.arrayBuffer());
       ffmpeg.FS("writeFile", "input.mp4", fileData);
       const duration = Math.max(end - start, 1);
       await ffmpeg.run("-i", "input.mp4", "-ss", `${start}`, "-t", `${duration}`, "-c", "copy", "trimmed.mp4");
