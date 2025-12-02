@@ -5,10 +5,41 @@ import { Loader2, Repeat } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+type FFmpegLoaderResult = {
+  ffmpeg: any;
+  fetchFile?: (input: any) => Promise<Uint8Array>;
+};
+
 const formats = [
   { value: "mp3", label: "MP4 → MP3" },
   { value: "gif", label: "MP4 → GIF" },
 ];
+
+const loadFFmpeg = async (): Promise<FFmpegLoaderResult> => {
+  if (typeof window === "undefined") {
+    throw new Error("FFmpeg only runs in the browser");
+  }
+  try {
+    const mod = await import("../../../lib/ffmpeg");
+    await mod.ensureFFmpegLoaded();
+    return { ffmpeg: mod.ffmpeg };
+  } catch (error) {
+    const fallback = await import("@ffmpeg/ffmpeg");
+    const create =
+      (fallback as any).createFFmpeg ??
+      (fallback as any).default?.createFFmpeg ??
+      (fallback as any).default;
+    const fetchFile = fallback.fetchFile ?? (fallback as any).default?.fetchFile;
+    if (typeof create !== "function" || typeof fetchFile !== "function") {
+      throw new Error("Unable to initialize ffmpeg.wasm. Please refresh and try again.");
+    }
+    const ffmpeg = create({ log: true });
+    if (!ffmpeg.isLoaded()) {
+      await ffmpeg.load();
+    }
+    return { ffmpeg, fetchFile };
+  }
+};
 
 export default function ConvertPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -22,13 +53,8 @@ export default function ConvertPage() {
     setLoading(true);
     setError(null);
     try {
-      if (typeof window === "undefined") throw new Error("FFmpeg only runs in the browser");
-      const { ffmpeg, ensureFFmpegLoaded } = await import("../../../lib/ffmpeg");
-      if (!ffmpeg || typeof ffmpeg.isLoaded !== "function") {
-        throw new Error("FFmpeg helper unavailable. Ensure @ffmpeg/ffmpeg@0.12.2 is installed.");
-      }
-      await ensureFFmpegLoaded();
-      const fileData = new Uint8Array(await file.arrayBuffer());
+      const { ffmpeg, fetchFile } = await loadFFmpeg();
+      const fileData = fetchFile ? await fetchFile(file) : new Uint8Array(await file.arrayBuffer());
       ffmpeg.FS("writeFile", "input.mp4", fileData);
       let blob: Blob;
       if (format === "mp3") {
@@ -55,9 +81,22 @@ export default function ConvertPage() {
     setLoading(true);
     setError(null);
     try {
-      const { convertToAudio } = await import("../../../lib/ffmpeg");
-      const blob = await convertToAudio(file);
-      setOutput(URL.createObjectURL(blob));
+      try {
+        const { convertToAudio } = await import("../../../lib/ffmpeg");
+        const blob = await convertToAudio(file);
+        setOutput(URL.createObjectURL(blob));
+        return;
+      } catch (primaryError) {
+        const { ffmpeg, fetchFile } = await loadFFmpeg();
+        if (!fetchFile) {
+          throw primaryError instanceof Error ? primaryError : new Error("Unable to extract audio");
+        }
+        ffmpeg.FS("writeFile", "input.mp4", await fetchFile(file));
+        await ffmpeg.run("-i", "input.mp4", "audio.m4a");
+        const data = ffmpeg.FS("readFile", "audio.m4a");
+        if (!(data instanceof Uint8Array)) throw new Error("Failed to read extracted audio");
+        setOutput(URL.createObjectURL(new Blob([data.buffer], { type: "audio/mp4" })));
+      }
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
@@ -87,16 +126,23 @@ export default function ConvertPage() {
         </div>
         <p className="text-xs text-slate-400">All conversions run locally with ffmpeg.wasm 0.12.2 (client-only).</p>
         <div className="flex gap-3 flex-wrap">
-          <button onClick={convertWithFFmpeg} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2 w-full sm:w-auto justify-center" disabled={loading || !file}>
+          <button
+            onClick={convertWithFFmpeg}
+            className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2 w-full sm:w-auto justify-center"
+            disabled={loading || !file}
+          >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Convert"}
           </button>
-          <button onClick={handleExtract} className="px-4 py-2 rounded-xl bg-white/5 w-full sm:w-auto" disabled={loading || !file}>
+          <button
+            onClick={handleExtract}
+            className="px-4 py-2 rounded-xl bg-white/5 w-full sm:w-auto"
+            disabled={loading || !file}
+          >
             Extract audio (M4A)
           </button>
         </div>
         {error && <p className="text-sm text-rose-300">{error}</p>}
-        {output &&
-          (format === "gif" ? <img src={output} className="w-full rounded-xl" /> : <audio controls src={output} className="w-full" />)}
+        {output && (format === "gif" ? <img src={output} className="w-full rounded-xl" /> : <audio controls src={output} className="w-full" />)}
       </div>
     </div>
   );

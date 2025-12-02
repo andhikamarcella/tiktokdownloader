@@ -5,6 +5,37 @@ import { Loader2, Scissors } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+type FFmpegLoaderResult = {
+  ffmpeg: any;
+  fetchFile?: (input: any) => Promise<Uint8Array>;
+};
+
+const loadFFmpeg = async (): Promise<FFmpegLoaderResult> => {
+  if (typeof window === "undefined") {
+    throw new Error("FFmpeg only runs in the browser");
+  }
+  try {
+    const mod = await import("../../../lib/ffmpeg");
+    await mod.ensureFFmpegLoaded();
+    return { ffmpeg: mod.ffmpeg };
+  } catch (error) {
+    const fallback = await import("@ffmpeg/ffmpeg");
+    const create =
+      (fallback as any).createFFmpeg ??
+      (fallback as any).default?.createFFmpeg ??
+      (fallback as any).default;
+    const fetchFile = fallback.fetchFile ?? (fallback as any).default?.fetchFile;
+    if (typeof create !== "function" || typeof fetchFile !== "function") {
+      throw new Error("Unable to initialize ffmpeg.wasm. Please refresh and try again.");
+    }
+    const ffmpeg = create({ log: true });
+    if (!ffmpeg.isLoaded()) {
+      await ffmpeg.load();
+    }
+    return { ffmpeg, fetchFile };
+  }
+};
+
 export default function TrimPage() {
   const [file, setFile] = useState<File | null>(null);
   const [start, setStart] = useState(0);
@@ -18,13 +49,8 @@ export default function TrimPage() {
     setLoading(true);
     setError(null);
     try {
-      if (typeof window === "undefined") throw new Error("FFmpeg only runs in the browser");
-      const { ensureFFmpegLoaded, ffmpeg } = await import("../../../lib/ffmpeg");
-      if (!ffmpeg || typeof ffmpeg.isLoaded !== "function") {
-        throw new Error("FFmpeg helper unavailable. Ensure @ffmpeg/ffmpeg@0.12.2 is installed.");
-      }
-      await ensureFFmpegLoaded();
-      const fileData = new Uint8Array(await file.arrayBuffer());
+      const { ffmpeg, fetchFile } = await loadFFmpeg();
+      const fileData = fetchFile ? await fetchFile(file) : new Uint8Array(await file.arrayBuffer());
       ffmpeg.FS("writeFile", "input.mp4", fileData);
       const duration = Math.max(end - start, 1);
       await ffmpeg.run("-i", "input.mp4", "-ss", `${start}`, "-t", `${duration}`, "-c", "copy", "trimmed.mp4");
@@ -66,7 +92,11 @@ export default function TrimPage() {
             className="glass p-2 rounded-xl flex-1"
             placeholder="End (s)"
           />
-          <button onClick={handleTrim} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2 w-full sm:w-auto justify-center" disabled={loading || !file}>
+          <button
+            onClick={handleTrim}
+            className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2 w-full sm:w-auto justify-center"
+            disabled={loading || !file}
+          >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Trim & preview"}
           </button>
         </div>
