@@ -109,6 +109,14 @@ export default function InstagramDownloader() {
               placeholder="Paste Instagram photo, reel, or carousel link"
               className="flex-1 bg-transparent placeholder:text-slate-400"
             />
+            <button
+              type="button"
+              onClick={() => setUrl("")}
+              disabled={!url}
+              className="px-3 py-2 rounded-xl bg-white/5 text-sm text-slate-100 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Clear
+            </button>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button

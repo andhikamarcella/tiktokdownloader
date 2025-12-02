@@ -123,6 +123,14 @@ export default function DownloaderForm() {
               placeholder="Paste any TikTok link — we auto-detect redirects"
               className="bg-transparent flex-1 min-w-0 text-base sm:text-lg placeholder:text-slate-400"
             />
+            <button
+              type="button"
+              onClick={() => setUrl("")}
+              disabled={!url}
+              className="px-3 py-2 rounded-xl bg-white/5 text-sm text-slate-200 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Clear
+            </button>
           </div>
           <div className="flex flex-col w-full gap-2 sm:flex-row sm:w-auto sm:items-center">
             <button
