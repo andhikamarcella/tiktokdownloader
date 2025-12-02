@@ -5,12 +5,28 @@ import { Download, Headphones, Link2, Loader2, Music, Video } from 'lucide-react
 import { TikTokMedia } from '../lib/tiktok'
 import { exportAsJSON, exportAsTXT, exportCSV, exportHashtags, exportSongInfo } from '../utils/exporters'
 
+type CaptionSuite = {
+  cleaned: string
+  summary: string
+  aesthetic: string
+  formal: string
+  funny: string
+  viral: string
+  en: string
+  id: string
+}
+
+type LookupResponse = { media: TikTokMedia; captions: CaptionSuite | null }
+
+type HistoryItem = { url: string; thumb: string; caption: string; ts: number }
+
 export default function DownloaderForm() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<TikTokMedia | null>(null)
-  const [captions, setCaptions] = useState<any>(null)
-  const [history, setHistory] = useState<any[]>([])
+  const [captions, setCaptions] = useState<CaptionSuite | null>(null)
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('tt-history')
@@ -32,16 +48,23 @@ export default function DownloaderForm() {
 
   const fetchData = async () => {
     setLoading(true)
-    const res = await fetch('/api/tiktok/video', {
-      method: 'POST',
-      body: JSON.stringify({ url }),
-      headers: { 'Content-Type': 'application/json' }
-    })
-    const json = await res.json()
-    setData(json.media)
-    setCaptions(json.captions)
-    setHistory((h) => [{ url, thumb: json.media.thumbnail, caption: json.media.caption, ts: Date.now() }, ...h])
-    setLoading(false)
+    setError(null)
+    try {
+      const res = await fetch('/api/tiktok/lookup', {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const json = (await res.json()) as LookupResponse & { error?: string }
+      if (!res.ok) throw new Error(json.error || 'Lookup failed')
+      setData(json.media)
+      setCaptions(json.captions)
+      setHistory((h) => [{ url, thumb: json.media.thumbnail, caption: json.media.caption, ts: Date.now() }, ...h])
+    } catch (err: unknown) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const metadataExports = useMemo(() => {
@@ -76,13 +99,14 @@ export default function DownloaderForm() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download
           </button>
         </div>
+        {error && <p className="text-sm text-rose-300 mt-2">{error}</p>}
       </div>
 
       {data && (
         <div className="grid md:grid-cols-3 gap-4">
           <div className="glass rounded-2xl p-4 border border-white/10 space-y-3">
             <div className="aspect-video rounded-xl overflow-hidden bg-black/50">
-              <video src={data.nowatermarkUrl} className="w-full h-full object-cover" autoPlay loop muted controls />
+              <video src={data.nowatermarkUrl || data.watermarkUrl} className="w-full h-full object-cover" autoPlay loop muted controls />
             </div>
             <div className="flex gap-2">
               <a href={data.nowatermarkUrl} className="flex-1 text-center py-2 rounded-xl bg-white/10">No watermark</a>
@@ -94,9 +118,9 @@ export default function DownloaderForm() {
               <p className="text-xs text-purple-200 mt-1">{data.hashtags.join(' ')}</p>
             </div>
             <div className="flex items-center gap-3">
-              <img src={data.author.avatar} alt="avatar" className="w-10 h-10 rounded-full" />
+              {data.author.avatar && <img src={data.author.avatar} alt="avatar" className="w-10 h-10 rounded-full" />}
               <div>
-                <p className="font-semibold">{data.author.nickname}</p>
+                <p className="font-semibold">{data.author.nickname ?? data.author.username}</p>
                 <p className="text-xs text-slate-400">{data.author.username}</p>
               </div>
             </div>
@@ -107,25 +131,26 @@ export default function DownloaderForm() {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="p-3 rounded-xl bg-white/5">
                 <p className="text-xs text-slate-400">Sound</p>
-                <p>{data.sound.title}</p>
-                <p className="text-xs">{data.sound.artist}</p>
+                <p>{data.sound?.title ?? 'Unknown'}</p>
+                <p className="text-xs">{data.sound?.artist}</p>
               </div>
               <div className="p-3 rounded-xl bg-white/5">
                 <p className="text-xs text-slate-400">Duration</p>
-                <p>{data.duration}s</p>
+                <p>{data.duration ? `${data.duration}s` : 'N/A'}</p>
               </div>
             </div>
             {captions && (
               <div className="space-y-2 text-sm">
                 <p className="text-xs text-slate-400">Clean</p>
-                <p className="glass neu p-2 rounded-lg">{captions.clean}</p>
+                <p className="glass neu p-2 rounded-lg">{captions.cleaned}</p>
                 <p className="text-xs text-slate-400">Summary</p>
                 <p className="glass neu p-2 rounded-lg">{captions.summary}</p>
                 <p className="text-xs text-slate-400">Styles</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {['aesthetic','formal','funny','viral'].map((k) => (
-                    <p key={k} className="glass neu p-2 rounded-lg text-xs">{captions[k]}</p>
-                  ))}
+                  <p className="glass neu p-2 rounded-lg text-xs">{captions.aesthetic}</p>
+                  <p className="glass neu p-2 rounded-lg text-xs">{captions.formal}</p>
+                  <p className="glass neu p-2 rounded-lg text-xs">{captions.funny}</p>
+                  <p className="glass neu p-2 rounded-lg text-xs">{captions.viral}</p>
                 </div>
                 <p className="text-xs text-slate-400">Translations</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -151,11 +176,11 @@ export default function DownloaderForm() {
 
           <div className="glass rounded-2xl p-4 border border-white/10 space-y-3">
             <h3 className="font-semibold flex items-center gap-2"><Music className="w-4 h-4" /> Music detection</h3>
-            <MusicDetector url={url} />
+            <MusicDetector url={data.audioUrl || url} />
             <h3 className="font-semibold flex items-center gap-2"><Headphones className="w-4 h-4" /> Cloud save</h3>
             <CloudSaves media={data} />
             <h3 className="font-semibold flex items-center gap-2"><Video className="w-4 h-4" /> Thumbnail enhancer</h3>
-            <ThumbnailFrames url={url} />
+            <ThumbnailFrames url={data.thumbnail || url} />
           </div>
         </div>
       )}
@@ -184,7 +209,7 @@ function MusicDetector({ url }: { url: string }) {
   const [result, setResult] = useState<any>(null)
 
   const run = async () => {
-    const res = await fetch('/api/tiktok/music', { method: 'POST', body: JSON.stringify({ url }), headers: { 'Content-Type': 'application/json' } })
+    const res = await fetch('/api/music/detect', { method: 'POST', body: JSON.stringify({ url }), headers: { 'Content-Type': 'application/json' } })
     setResult(await res.json())
   }
 
@@ -193,9 +218,9 @@ function MusicDetector({ url }: { url: string }) {
       <button onClick={run} className="px-3 py-2 rounded-xl bg-white/10">Detect music</button>
       {result && (
         <div className="text-xs space-y-1">
-          <p>Fingerprint: {result.fingerprint.hash}</p>
-          <p>Spotify: {result.spotify?.[0]?.title}</p>
-          <p>YT Music: {result.youtubeMusic?.[0]?.title}</p>
+          <p>Fingerprint: {result.fingerprint?.hash}</p>
+          <p>AudD: {result.audd?.result?.title ?? 'n/a'}</p>
+          <p>YouTube: {result.youtube?.items?.[0]?.snippet?.title ?? 'n/a'}</p>
         </div>
       )}
     </div>
@@ -204,12 +229,12 @@ function MusicDetector({ url }: { url: string }) {
 
 function CloudSaves({ media }: { media: TikTokMedia }) {
   const send = async (provider: string) => {
-    await fetch('/api/tiktok/cloud', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileUrl: media.nowatermarkUrl, provider }) })
-    alert('Queued to ' + provider)
+    console.info(`Queue to ${provider}`, media.nowatermarkUrl)
+    alert(`Ready to push ${provider} via your own token exchange.`)
   }
   return (
     <div className="flex flex-wrap gap-2">
-      {['drive', 'dropbox', 'telegram'].map((p) => (
+      {['google drive', 'dropbox', 'telegram'].map((p) => (
         <button key={p} onClick={() => send(p)} className="px-3 py-2 rounded-xl bg-white/10 capitalize">{p}</button>
       ))}
     </div>
@@ -219,17 +244,20 @@ function CloudSaves({ media }: { media: TikTokMedia }) {
 function ThumbnailFrames({ url }: { url: string }) {
   const [frames, setFrames] = useState<any>(null)
   const run = async () => {
-    const res = await fetch('/api/tiktok/thumbnail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
+    const res = await fetch('/api/thumbnail/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
     setFrames(await res.json())
   }
   return (
     <div className="space-y-2 text-xs">
       <button onClick={run} className="px-3 py-2 rounded-xl bg-white/10">Generate frames</button>
       {frames && (
-        <div className="grid grid-cols-3 gap-2">
-          {frames.frames.map((f: any) => (
-            <img key={f.url} src={f.url} className="rounded-lg" />
-          ))}
+        <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            {frames.frames.map((f: any) => (
+              <img key={f.url} src={f.url} className="rounded-lg" />
+            ))}
+          </div>
+          <p>Best: {frames.best.url}</p>
         </div>
       )}
     </div>

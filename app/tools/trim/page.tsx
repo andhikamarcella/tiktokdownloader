@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Loader2, Scissors } from 'lucide-react'
+import { runTrim } from '../../../lib/ffmpeg'
 
 export default function TrimPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -9,19 +10,20 @@ export default function TrimPage() {
   const [end, setEnd] = useState(5)
   const [loading, setLoading] = useState(false)
   const [output, setOutput] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
 
   const handleTrim = async () => {
     if (!file) return
     setLoading(true)
-    const form = new FormData()
-    form.append('action', 'trim')
-    form.append('start', `${start}`)
-    form.append('end', `${end}`)
-    form.append('file', file)
-    const res = await fetch('/api/tools', { method: 'POST', body: form })
-    const blob = await res.blob()
-    setOutput(URL.createObjectURL(blob))
-    setLoading(false)
+    setError(null)
+    try {
+      const blob = await runTrim(file, start, end)
+      setOutput(URL.createObjectURL(blob))
+    } catch (err: unknown) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -29,7 +31,7 @@ export default function TrimPage() {
       <div className="flex items-center gap-3">
         <Scissors className="w-5 h-5" />
         <div>
-          <p className="text-sm text-slate-300">Trim before download</p>
+          <p className="text-sm text-slate-300">Trim before download (client ffmpeg.wasm)</p>
           <h1 className="text-3xl font-bold">Trim tool</h1>
         </div>
       </div>
@@ -38,10 +40,11 @@ export default function TrimPage() {
         <div className="flex gap-3">
           <input type="number" value={start} onChange={(e) => setStart(Number(e.target.value))} className="glass p-2 rounded-xl" />
           <input type="number" value={end} onChange={(e) => setEnd(Number(e.target.value))} className="glass p-2 rounded-xl" />
-          <button onClick={handleTrim} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2">
+          <button onClick={handleTrim} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2" disabled={loading}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Trim & preview'}
           </button>
         </div>
+        {error && <p className="text-sm text-rose-300">{error}</p>}
         {output && (
           <video src={output} controls className="w-full rounded-xl" />
         )}

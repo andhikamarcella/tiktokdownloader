@@ -5,7 +5,8 @@ export function exportAsJSON(data: TikTokMedia) {
 }
 
 export function exportAsTXT(data: TikTokMedia) {
-  return `${data.caption}\nHashtags: ${data.hashtags.join(' ')}\nSound: ${data.sound.title} - ${data.sound.artist}`
+  const sound = data.sound ? `${data.sound.title} - ${data.sound.artist}` : 'Unknown'
+  return `${data.caption}\nHashtags: ${data.hashtags.join(' ')}\nSound: ${sound}`
 }
 
 export function exportHashtags(data: TikTokMedia) {
@@ -13,6 +14,7 @@ export function exportHashtags(data: TikTokMedia) {
 }
 
 export function exportSongInfo(data: TikTokMedia) {
+  if (!data.sound) return 'Unknown sound'
   return `${data.sound.title} · ${data.sound.artist} (${data.sound.album ?? 'Single'})`
 }
 

@@ -8,12 +8,24 @@ export default function CaptionAIPage() {
   const [style, setStyle] = useState('viral')
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const run = async () => {
     setLoading(true)
-    const res = await fetch('/api/tiktok/caption', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caption, style }) })
-    setResult(await res.json())
-    setLoading(false)
+    setError(null)
+    try {
+      const [clean, summarize, rewrite, translate] = await Promise.all([
+        fetch('/api/ai/clean', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caption }) }).then((r) => r.json()),
+        fetch('/api/ai/summarize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caption }) }).then((r) => r.json()),
+        fetch('/api/ai/rewrite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caption, style }) }).then((r) => r.json()),
+        fetch('/api/ai/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caption, target: 'en' }) }).then((r) => r.json())
+      ])
+      setResult({ cleaned: clean.cleaned, summary: summarize.summary, rewritten: rewrite.rewritten, translated: translate.translated })
+    } catch (err: unknown) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -33,9 +45,10 @@ export default function CaptionAIPage() {
           <option value="funny">Funny</option>
           <option value="viral">Viral</option>
         </select>
-        <button onClick={run} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2">
+        <button onClick={run} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2" disabled={loading}>
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Run AI'}
         </button>
+        {error && <p className="text-sm text-rose-300">{error}</p>}
         {result && (
           <div className="grid sm:grid-cols-2 gap-2 text-sm">
             <div className="glass neu p-3 rounded-xl">

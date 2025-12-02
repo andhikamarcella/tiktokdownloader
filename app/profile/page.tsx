@@ -11,10 +11,21 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     setLoading(true)
-    const res = await fetch('/api/tiktok/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
-    const data = await res.json()
+    const mockVideos = Array.from({ length: 6 }).map((_, i) => ({
+      id: `vid-${i + 1}`,
+      title: `Clip ${i + 1} from ${url || 'profile'}`,
+      cover: `https://picsum.photos/seed/profile-${i}/400/700`,
+      url: `${url || 'https://www.tiktok.com/@demo'}/video/${i + 1}`
+    }))
+    const data = {
+      avatar: 'https://i.pravatar.cc/200?img=12',
+      nickname: 'Creator Nick',
+      username: '@profile',
+      followers: 120_000,
+      videos: mockVideos
+    }
     setProfile(data)
-    setSelected(data.videos.map((v: any) => v.id))
+    setSelected(mockVideos.map((v) => v.id))
     setLoading(false)
   }
 

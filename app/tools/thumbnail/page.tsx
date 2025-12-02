@@ -10,7 +10,7 @@ export default function ThumbnailPage() {
 
   const run = async () => {
     setLoading(true)
-    const res = await fetch('/api/tiktok/thumbnail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
+    const res = await fetch('/api/thumbnail/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
     setFrames(await res.json())
     setLoading(false)
   }
