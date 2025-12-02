@@ -146,8 +146,8 @@ export default function DownloaderForm() {
       {data && (
         <div className="grid md:grid-cols-3 gap-4">
           <div className="glass rounded-2xl p-4 border border-white/10 space-y-3">
-            <div className="aspect-video rounded-xl overflow-hidden bg-black/50">
-              <video src={videoSource} className="w-full h-full object-cover" autoPlay loop muted controls />
+            <div className="aspect-[9/16] rounded-xl overflow-hidden bg-black/50">
+              <video src={videoSource} className="w-full h-full object-contain" autoPlay loop muted controls />
             </div>
             <div className="flex gap-2 flex-wrap">
               <a

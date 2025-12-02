@@ -37,9 +37,9 @@ export default function HomePage() {
         </div>
         <div className="flex-1 w-full">
           <div className="glass p-6 rounded-2xl border border-white/10">
-            <div className="aspect-video rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
+            <div className="aspect-[9/16] rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
               <video
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 src="https://file-examples.com/storage/fe3f705b98692eb0aa24a56/2017/04/file_example_MP4_1920_18MG.mp4"
                 loop
                 autoPlay

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, Image as ImageIcon, Loader2, PlayCircle, Users } from "lucide-react";
 import type { SaveInstaItem } from "../lib/instagram";
 
@@ -10,13 +10,39 @@ type MediaState = {
   items: SaveInstaItem[];
 };
 
+type HistoryItem = { url: string; thumb: string; caption: string; ts: number };
+
 export default function InstagramDownloader() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaState | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [pasting, setPasting] = useState(false);
 
   const hasCarousel = useMemo(() => (media?.items.length || 0) > 1, [media]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("tt-history");
+    if (saved) setHistory(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    if (!history.length) return;
+    localStorage.setItem("tt-history", JSON.stringify(history.slice(0, 50)));
+  }, [history]);
+
+  const handlePaste = async () => {
+    setPasting(true);
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) setUrl(text);
+    } catch (err) {
+      setError("Clipboard not available");
+    } finally {
+      setPasting(false);
+    }
+  };
 
   const lookup = async () => {
     if (!url) return;
@@ -32,6 +58,18 @@ export default function InstagramDownloader() {
         author: json.author,
         items: json.items as SaveInstaItem[],
       });
+      if (json.items?.length) {
+        const first = json.items[0] as SaveInstaItem;
+        setHistory((prev) => [
+          {
+            url,
+            thumb: first.thumbnail || first.url,
+            caption: json.title || "Instagram media",
+            ts: Date.now(),
+          },
+          ...prev,
+        ]);
+      }
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
@@ -72,13 +110,22 @@ export default function InstagramDownloader() {
               className="flex-1 bg-transparent placeholder:text-slate-400"
             />
           </div>
-          <button
-            onClick={lookup}
-            disabled={!url || loading}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 text-slate-900 font-semibold flex items-center gap-2 justify-center"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={handlePaste}
+              disabled={pasting}
+              className="px-4 py-2 rounded-xl bg-white/10 text-sm flex items-center justify-center gap-2"
+            >
+              {pasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Paste
+            </button>
+            <button
+              onClick={lookup}
+              disabled={!url || loading}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 text-slate-900 font-semibold flex items-center gap-2 justify-center"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download
+            </button>
+          </div>
         </div>
         {error && <p className="text-sm text-rose-300">{error}</p>}
         {!error && !media && (
@@ -98,11 +145,11 @@ export default function InstagramDownloader() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {media.items.map((item, idx) => (
               <div key={`${item.url}-${idx}`} className="space-y-3 rounded-xl border border-white/10 p-3 bg-black/30">
-                <div className="aspect-video rounded-lg overflow-hidden bg-black/60 flex items-center justify-center">
+                <div className="aspect-[9/16] rounded-lg overflow-hidden bg-black/60 flex items-center justify-center">
                   {item.type === "video" ? (
-                    <video src={item.url} className="w-full h-full object-cover" controls loop muted playsInline />
+                    <video src={item.url} className="w-full h-full object-contain" controls loop muted playsInline />
                   ) : (
-                    <img src={item.thumbnail || item.url} alt={media.title || "Instagram media"} className="w-full h-full object-cover" />
+                    <img src={item.thumbnail || item.url} alt={media.title || "Instagram media"} className="w-full h-full object-contain" />
                   )}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
