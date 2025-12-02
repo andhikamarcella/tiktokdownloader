@@ -70,12 +70,13 @@ const normalizeCandidates = (candidate: unknown): InstagramRapidItem[] => {
         const typeValue = record.type;
         const type: "video" | "image" =
           typeValue === "video" || typeValue === "image" ? typeValue : guessTypeFromUrl(url);
-        const thumb =
+        const thumbValue =
           (typeof record.thumbnail === "string" && record.thumbnail) ||
           (typeof record.thumb === "string" && record.thumb) ||
           (typeof record.preview === "string" && record.preview) ||
           (typeof record.poster === "string" && record.poster) ||
           (typeof record.thumbnail_url === "string" && record.thumbnail_url);
+        const thumb = typeof thumbValue === "string" ? thumbValue : undefined;
         return {
           url,
           type,
