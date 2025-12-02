@@ -284,12 +284,40 @@ const buildJsonCandidates = (resolvedUrl: string) => {
     const id = parts[parts.length - 1];
     if (id) {
       candidates.push(`https://www.reddit.com/comments/${id}.json?raw_json=1`);
+      candidates.push(`https://gateway.reddit.com/desktopapi/v1/post/${id}?raw_json=1`);
+      candidates.push(`https://www.reddit.com/api/info/?id=t3_${id}&raw_json=1`);
     }
   } else {
     candidates.push(`${base}.json?raw_json=1`);
   }
 
   return unique(candidates);
+};
+
+const parsePostFromJson = (json: RedditListing | RedditListing[] | any): RedditPost | null => {
+  // Standard listing arrays
+  if (Array.isArray(json)) {
+    const fromListing = json[0]?.data?.children?.[0]?.data as RedditPost | undefined;
+    if (fromListing) return fromListing;
+  }
+
+  // Single listing envelope
+  if (json?.data?.children?.[0]?.data) {
+    return json.data.children[0].data as RedditPost;
+  }
+
+  // Gateway desktop API response
+  if (json?.posts && typeof json.posts === "object") {
+    const values = Object.values(json.posts) as RedditPost[];
+    if (values.length) return values[0];
+  }
+
+  // api/info style
+  if (json?.data?.children?.length) {
+    return json.data.children[0].data as RedditPost;
+  }
+
+  return null;
 };
 
 async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPost> {
@@ -323,26 +351,19 @@ async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPo
       }
 
       json = (await res.json()) as RedditListing | RedditListing[];
-      break;
+      const parsedPost = parsePostFromJson(json);
+      if (!parsedPost) {
+        errors.push("Invalid JSON shape from proxy");
+        continue;
+      }
+      return parsedPost;
     } catch (err) {
       errors.push((err as Error).message || "Unknown proxy error");
     }
   }
 
-  if (!json) {
-    const suffix = errors.length ? ` (${unique(errors).join(" | ")})` : "";
-    throw new Error(`Proxy lookup failed after fallbacks${suffix}`);
-  }
-
-  const post = Array.isArray(json)
-    ? json[0]?.data?.children?.[0]?.data
-    : json?.data?.children?.[0]?.data;
-
-  if (!post) {
-    throw new Error("No Reddit post found for this URL");
-  }
-
-  return post;
+  const suffix = errors.length ? ` (${unique(errors).join(" | ")})` : "";
+  throw new Error(`Proxy lookup failed after fallbacks${suffix}`);
 }
 
 export async function fetchRedditMedia(url: string, auth?: RedditAuth): Promise<RedditMediaResponse> {
