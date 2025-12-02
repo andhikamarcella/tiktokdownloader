@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Loader2, Scissors } from "lucide-react";
-import { ensureFFmpegLoaded, ffmpeg } from "../../../lib/ffmpeg";
 
 export default function TrimPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,6 +16,7 @@ export default function TrimPage() {
     setLoading(true);
     setError(null);
     try {
+      const { ensureFFmpegLoaded, ffmpeg } = await import("../../../lib/ffmpeg");
       await ensureFFmpegLoaded();
       const fileData = new Uint8Array(await file.arrayBuffer());
       ffmpeg.FS("writeFile", "input.mp4", fileData);

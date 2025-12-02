@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Loader2, Repeat } from "lucide-react";
-import { convertToAudio, ensureFFmpegLoaded, ffmpeg } from "../../../lib/ffmpeg";
 
 const formats = [
   { value: "mp3", label: "MP4 → MP3" },
@@ -21,6 +20,7 @@ export default function ConvertPage() {
     setLoading(true);
     setError(null);
     try {
+      const { ffmpeg, ensureFFmpegLoaded } = await import("../../../lib/ffmpeg");
       await ensureFFmpegLoaded();
       const fileData = new Uint8Array(await file.arrayBuffer());
       ffmpeg.FS("writeFile", "input.mp4", fileData);
@@ -49,6 +49,7 @@ export default function ConvertPage() {
     setLoading(true);
     setError(null);
     try {
+      const { convertToAudio } = await import("../../../lib/ffmpeg");
       const blob = await convertToAudio(file);
       setOutput(URL.createObjectURL(blob));
     } catch (err: unknown) {
