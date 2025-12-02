@@ -10,6 +10,8 @@ export type SaveInstaItem = {
 export type SaveInstaResponse = {
   title?: string;
   author?: string;
+  caption?: string;
+  username?: string;
   media?: any[];
   result?: any[];
   links?: any[];
