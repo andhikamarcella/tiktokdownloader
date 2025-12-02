@@ -55,7 +55,9 @@ export default function RedditDownloader() {
         ...prev,
       ]);
     } catch (err: unknown) {
-      setError((err as Error).message);
+      const message = (err as Error).message || "Lookup failed";
+      const clean = message.replace(/<[^>]+>/g, "").slice(0, 200);
+      setError(clean || "Lookup failed");
     } finally {
       setLoading(false);
     }

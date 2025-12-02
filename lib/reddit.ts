@@ -158,24 +158,48 @@ function extractDirectUrl(post: RedditPost): RedditMediaItem[] {
   return items;
 }
 
+async function fetchRedditPost(url: string): Promise<RedditPost> {
+  const trimUrl = url.replace(/\?.*$/, "").replace(/\.json$/, "").replace(/\/$/, "");
+  const candidates = [
+    `https://www.reddit.com/api/info.json?raw_json=1&url=${encodeURIComponent(trimUrl)}`,
+    `${trimUrl}.json?raw_json=1`,
+  ];
+
+  let lastError: string | undefined;
+
+  for (const endpoint of candidates) {
+    try {
+      const res = await fetch(endpoint, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        lastError = `Reddit lookup failed: ${res.status} ${text?.slice(0, 200)}`;
+        continue;
+      }
+
+      const json = (await res.json()) as RedditListing | RedditListing[];
+      const post = Array.isArray(json)
+        ? json[0]?.data?.children?.[0]?.data
+        : json?.data?.children?.[0]?.data;
+
+      if (post) return post;
+    } catch (err) {
+      lastError = (err as Error).message;
+    }
+  }
+
+  throw new Error(lastError || "No Reddit post found for this URL");
+}
+
 export async function fetchRedditMedia(url: string): Promise<RedditMediaResponse> {
-  const infoUrl = `https://www.reddit.com/api/info.json?raw_json=1&url=${encodeURIComponent(url)}`;
-  const res = await fetch(infoUrl, {
-    headers: { "User-Agent": "TikTokDownloaderPro/1.0" },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Reddit lookup failed: ${res.status} ${text}`);
-  }
-
-  const json = (await res.json()) as RedditListing;
-  const post = json?.data?.children?.[0]?.data;
-
-  if (!post) {
-    throw new Error("No Reddit post found for this URL");
-  }
+  const post = await fetchRedditPost(url);
 
   const items: RedditMediaItem[] = [];
   const seen = new Set<string>();
