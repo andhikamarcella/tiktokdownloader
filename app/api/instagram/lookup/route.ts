@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchInstagramMedia } from "../../../lib/instagram";
+import { fetchInstagramMedia } from "../../../../lib/instagram";
 
 export async function POST(req: Request) {
   try {
