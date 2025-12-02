@@ -1,0 +1,51 @@
+'use client'
+
+import { useState } from 'react'
+import { Loader2, Scissors } from 'lucide-react'
+
+export default function TrimPage() {
+  const [file, setFile] = useState<File | null>(null)
+  const [start, setStart] = useState(0)
+  const [end, setEnd] = useState(5)
+  const [loading, setLoading] = useState(false)
+  const [output, setOutput] = useState<string>('')
+
+  const handleTrim = async () => {
+    if (!file) return
+    setLoading(true)
+    const form = new FormData()
+    form.append('action', 'trim')
+    form.append('start', `${start}`)
+    form.append('end', `${end}`)
+    form.append('file', file)
+    const res = await fetch('/api/tools', { method: 'POST', body: form })
+    const blob = await res.blob()
+    setOutput(URL.createObjectURL(blob))
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Scissors className="w-5 h-5" />
+        <div>
+          <p className="text-sm text-slate-300">Trim before download</p>
+          <h1 className="text-3xl font-bold">Trim tool</h1>
+        </div>
+      </div>
+      <div className="glass p-4 rounded-2xl border border-white/10 space-y-3">
+        <input type="file" accept="video/mp4" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <div className="flex gap-3">
+          <input type="number" value={start} onChange={(e) => setStart(Number(e.target.value))} className="glass p-2 rounded-xl" />
+          <input type="number" value={end} onChange={(e) => setEnd(Number(e.target.value))} className="glass p-2 rounded-xl" />
+          <button onClick={handleTrim} className="px-4 py-2 rounded-xl bg-white/10 flex items-center gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Trim & preview'}
+          </button>
+        </div>
+        {output && (
+          <video src={output} controls className="w-full rounded-xl" />
+        )}
+      </div>
+    </div>
+  )
+}
