@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { fetchFile } from "@ffmpeg/ffmpeg";
 import { Loader2, Scissors } from "lucide-react";
 import { ensureFFmpegLoaded, ffmpeg } from "../../../lib/ffmpeg";
 
@@ -19,7 +18,8 @@ export default function TrimPage() {
     setError(null);
     try {
       await ensureFFmpegLoaded();
-      ffmpeg.FS("writeFile", "input.mp4", await fetchFile(file));
+      const fileData = new Uint8Array(await file.arrayBuffer());
+      ffmpeg.FS("writeFile", "input.mp4", fileData);
       const duration = Math.max(end - start, 1);
       await ffmpeg.run("-i", "input.mp4", "-ss", `${start}`, "-t", `${duration}`, "-c", "copy", "trimmed.mp4");
       const trimmed = ffmpeg.FS("readFile", "trimmed.mp4");

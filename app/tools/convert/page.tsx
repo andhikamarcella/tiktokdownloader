@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { fetchFile } from "@ffmpeg/ffmpeg";
 import { Loader2, Repeat } from "lucide-react";
 import { convertToAudio, ensureFFmpegLoaded, ffmpeg } from "../../../lib/ffmpeg";
 
@@ -23,7 +22,8 @@ export default function ConvertPage() {
     setError(null);
     try {
       await ensureFFmpegLoaded();
-      ffmpeg.FS("writeFile", "input.mp4", await fetchFile(file));
+      const fileData = new Uint8Array(await file.arrayBuffer());
+      ffmpeg.FS("writeFile", "input.mp4", fileData);
       let blob: Blob;
       if (format === "mp3") {
         await ffmpeg.run("-i", "input.mp4", "-q:a", "0", "-map", "a", "output.mp3");
