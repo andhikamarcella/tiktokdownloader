@@ -163,9 +163,10 @@ async function fetchRedditPost(url: string): Promise<RedditPost> {
   const headers = {
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    Accept: "application/json",
+    Accept: "application/json, text/plain, */*",
     "Accept-Language": "en-US,en;q=0.9",
     Referer: "https://www.reddit.com/",
+    Cookie: "over18=1;" as const,
   } as const;
 
   const resolvedUrl = await (async () => {
@@ -194,11 +195,22 @@ async function fetchRedditPost(url: string): Promise<RedditPost> {
   const path = parsed?.pathname || "";
   const basePath = path ? path.replace(/\/$/, "") : "";
 
+  const postId = (() => {
+    const segments = basePath.split("/").filter(Boolean);
+    const idFromComments = segments.find((segment, idx) => segments[idx - 1] === "comments");
+    const likelyId = idFromComments || segments.find((segment) => /^[a-z0-9]{5,9}$/i.test(segment));
+    return likelyId || "";
+  })();
+
+  const commentPath = postId ? `/comments/${postId}` : "";
+
   const candidates = [
     `https://www.reddit.com/api/info.json?raw_json=1&url=${encodeURIComponent(resolvedUrl)}`,
     `${resolvedUrl}.json?raw_json=1`,
     basePath ? `https://old.reddit.com${basePath}.json?raw_json=1` : null,
     basePath ? `https://api.reddit.com${basePath}?raw_json=1` : null,
+    commentPath ? `https://www.reddit.com${commentPath}.json?raw_json=1` : null,
+    commentPath ? `https://old.reddit.com${commentPath}.json?raw_json=1` : null,
   ].filter(Boolean) as string[];
 
   let lastError: string | undefined;
