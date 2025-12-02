@@ -38,7 +38,13 @@ export default function HomePage() {
         <div className="flex-1 w-full">
           <div className="glass p-6 rounded-2xl border border-white/10">
             <div className="aspect-video rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
-              <video className="w-full h-full object-cover" src="https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4" loop autoPlay muted />
+              <video
+                className="w-full h-full object-cover"
+                src="https://file-examples.com/storage/fe3f705b98692eb0aa24a56/2017/04/file_example_MP4_1920_18MG.mp4"
+                loop
+                autoPlay
+                muted
+              />
             </div>
             <p className="text-xs text-right text-slate-400 mt-2">Preview loop · HD thumb auto-pick · Trim & convert</p>
           </div>
