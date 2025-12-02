@@ -1,28 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Download, Image as ImageIcon, Loader2, PlayCircle, Users } from "lucide-react";
-import type { InstagramMedia } from "../lib/instagram";
+import type { SaveInstaItem } from "../lib/instagram";
+
+type MediaState = {
+  title?: string;
+  author?: string;
+  items: SaveInstaItem[];
+};
 
 export default function InstagramDownloader() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [media, setMedia] = useState<InstagramMedia | null>(null);
+  const [media, setMedia] = useState<MediaState | null>(null);
+
+  const hasCarousel = useMemo(() => (media?.items.length || 0) > 1, [media]);
 
   const lookup = async () => {
+    if (!url) return;
     setLoading(true);
     setError(null);
     setMedia(null);
     try {
-      const res = await fetch("/api/instagram/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
+      const res = await fetch(`/api/ig?url=${encodeURIComponent(url)}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Lookup failed");
-      setMedia(json.media as InstagramMedia);
+      setMedia({
+        title: json.title,
+        author: json.author,
+        items: json.items as SaveInstaItem[],
+      });
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
@@ -30,22 +39,24 @@ export default function InstagramDownloader() {
     }
   };
 
-  const handleDownload = async () => {
-    if (!media?.downloadUrl) return;
-    const res = await fetch(media.downloadUrl);
-    if (!res.ok) {
-      setError("Unable to download media");
-      return;
+  const downloadItem = async (item: SaveInstaItem, index: number) => {
+    setError(null);
+    try {
+      const res = await fetch(item.url);
+      if (!res.ok) throw new Error("Unable to download media");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      const baseName = item.type === "video" ? "instagram-video" : "instagram-photo";
+      anchor.download = hasCarousel ? `${baseName}-${index + 1}` : baseName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: unknown) {
+      setError((err as Error).message);
     }
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = blobUrl;
-    anchor.download = media.isVideo ? "instagram-video.mp4" : "instagram-photo.jpg";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(blobUrl);
   };
 
   return (
@@ -57,7 +68,7 @@ export default function InstagramDownloader() {
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste Instagram photo or reel link"
+              placeholder="Paste Instagram photo, reel, or carousel link"
               className="flex-1 bg-transparent placeholder:text-slate-400"
             />
           </div>
@@ -70,37 +81,47 @@ export default function InstagramDownloader() {
           </button>
         </div>
         {error && <p className="text-sm text-rose-300">{error}</p>}
+        {!error && !media && (
+          <p className="text-xs text-slate-400">We only use the SaveInsta RapidAPI endpoint — no scraping, Vercel safe.</p>
+        )}
       </div>
 
       {media && (
-        <div className="glass rounded-2xl p-4 border border-white/10 space-y-3">
-          <div className="aspect-video rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
-            {media.isVideo ? (
-              <video src={media.downloadUrl} className="w-full h-full object-cover" controls loop muted />
-            ) : (
-              <img src={media.thumbnailUrl || media.downloadUrl} alt={media.title} className="w-full h-full object-cover" />
-            )}
-          </div>
+        <div className="glass rounded-2xl p-4 border border-white/10 space-y-4">
           <div className="flex items-center gap-2 text-sm text-slate-200">
             <Users className="w-4 h-4" />
-            <span className="font-semibold">{media.author}</span>
+            <span className="font-semibold">{media.author || "Instagram user"}</span>
             <span className="text-slate-400">·</span>
-            <span className="text-slate-400">{media.title}</span>
+            <span className="text-slate-400">{media.title || "Media"}</span>
+            {hasCarousel && <span className="text-xs px-2 py-1 rounded-full bg-white/10">Carousel</span>}
           </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <a
-              href={media.downloadUrl}
-              download={media.isVideo ? "instagram-video.mp4" : "instagram-photo.jpg"}
-              className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-center"
-            >
-              Direct link
-            </a>
-            <button
-              onClick={handleDownload}
-              className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 text-slate-900 font-semibold flex items-center gap-2 justify-center"
-            >
-              <PlayCircle className="w-4 h-4" /> Save file
-            </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {media.items.map((item, idx) => (
+              <div key={`${item.url}-${idx}`} className="space-y-3 rounded-xl border border-white/10 p-3 bg-black/30">
+                <div className="aspect-video rounded-lg overflow-hidden bg-black/60 flex items-center justify-center">
+                  {item.type === "video" ? (
+                    <video src={item.url} className="w-full h-full object-cover" controls loop muted playsInline />
+                  ) : (
+                    <img src={item.thumbnail || item.url} alt={media.title || "Instagram media"} className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <a
+                    href={item.url}
+                    download
+                    className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-center"
+                  >
+                    Direct link
+                  </a>
+                  <button
+                    onClick={() => downloadItem(item, idx)}
+                    className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 text-slate-900 font-semibold flex items-center gap-2 justify-center"
+                  >
+                    <PlayCircle className="w-4 h-4" /> Save file
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
