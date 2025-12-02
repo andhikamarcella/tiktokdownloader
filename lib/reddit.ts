@@ -10,6 +10,19 @@ export type RedditMediaResponse = {
   title?: string;
   author?: string;
   items: RedditMediaItem[];
+  /** Success indicator for the proxy-backed API. */
+  success?: boolean;
+  /** Normalized media classification for the API consumer. */
+  type?: "video" | "image" | "gallery" | "gif" | "unknown";
+  /** Structured media references for Viddit-style clients. */
+  media?: {
+    video: string | null;
+    audio: string | null;
+    image: string | null;
+    gallery: string[];
+  };
+  resolvedUrl?: string;
+  raw?: any;
 };
 
 export type RedditAuth = {
@@ -50,6 +63,7 @@ type RedditVideo = {
 type RedditPost = {
   title?: string;
   author?: string;
+  permalink?: string;
   url?: string;
   url_overridden_by_dest?: string;
   is_gallery?: boolean;
@@ -63,6 +77,8 @@ type RedditPost = {
 const WORKER_URL = "https://blue-mode-1265.andhikamarcellafernanda.workers.dev/?url=";
 
 const decodeUrl = (url?: string) => url?.replace(/&amp;/g, "&") ?? "";
+
+const stripJsonAndTrailingSlash = (url: string) => url.replace(/\.json($|\?.*)/i, "").replace(/\/$/, "");
 
 const proxiedFetch = async (target: string, init?: RequestInit) => {
   const proxyUrl = `${WORKER_URL}${encodeURIComponent(target)}`;
@@ -83,6 +99,16 @@ const proxiedFetch = async (target: string, init?: RequestInit) => {
   });
 };
 
+const extractCanonicalFromHtml = (html: string) => {
+  const canonicalMatch = html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i);
+  if (canonicalMatch?.[1]) return canonicalMatch[1];
+
+  const permalinkMatch = html.match(/"permalink"\s*:\s*"([^"]+)"/i);
+  if (permalinkMatch?.[1]) return `https://www.reddit.com${permalinkMatch[1]}`;
+
+  return "";
+};
+
 const guessTypeFromUrl = (url: string, fallback: RedditMediaItem["type"]) => {
   if (/v\.redd\.it|\.mp4($|\?)/i.test(url)) return "video" as const;
   if (/\.gif($|\?)/i.test(url)) return "gif" as const;
@@ -96,6 +122,21 @@ const guessExtension = (url: string, fallback: string) => {
   const ext = parts.length > 1 ? parts.pop() : undefined;
   if (ext && ext.length <= 5) return ext;
   return fallback;
+};
+
+const buildAudioUrl = (videoUrl: string) => {
+  try {
+    const parsed = new URL(videoUrl);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const postId = parts[0];
+    if (!postId) return null;
+    parsed.pathname = `/${postId}/DASH_audio.mp4`;
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return null;
+  }
 };
 
 export function fileNameForItem(item: RedditMediaItem, idx: number) {
@@ -157,6 +198,13 @@ function extractPreviewItems(post: RedditPost): RedditMediaItem[] {
   return items;
 }
 
+const galleryUrls = (post: RedditPost) => {
+  if (!post.is_gallery || !post.media_metadata) return [] as string[];
+  return Object.values(post.media_metadata)
+    .map((item) => decodeUrl(item?.s?.gif || item?.s?.u))
+    .filter((url): url is string => Boolean(url));
+};
+
 function extractRedditVideo(post: RedditPost): RedditMediaItem[] {
   const items: RedditMediaItem[] = [];
   const video = post.secure_media?.reddit_video || post.media?.reddit_video;
@@ -184,8 +232,29 @@ function extractDirectUrl(post: RedditPost): RedditMediaItem[] {
   return items;
 }
 
+async function resolveShortlink(url: string, headers: Record<string, string>) {
+  const target = stripJsonAndTrailingSlash(url.startsWith("http") ? url : `https://${url}`);
+  try {
+    const res = await proxiedFetch(target, {
+      method: "GET",
+      headers: {
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Referer: "https://www.reddit.com/",
+        ...headers,
+      },
+    });
+
+    const text = await res.text();
+    const canonical = extractCanonicalFromHtml(text);
+    if (canonical) return stripJsonAndTrailingSlash(canonical);
+  } catch {
+    // fall through to default
+  }
+
+  return target;
+}
+
 async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPost> {
-  const trimUrl = url.replace(/\?.*$/, "").replace(/\.json$/, "").replace(/\/$/, "");
   const sessionCookie = auth?.sessionCookie?.trim();
   const headers = {
     Accept: "application/json, text/plain, */*",
@@ -195,85 +264,31 @@ async function fetchRedditPost(url: string, auth?: RedditAuth): Promise<RedditPo
     ...(auth?.bearerToken ? { Authorization: `Bearer ${auth.bearerToken}` } : {}),
   } as const;
 
-  const resolvedUrl = await (async () => {
-    try {
-      const res = await proxiedFetch(trimUrl.startsWith("http") ? trimUrl : `https://${trimUrl}`, {
-        method: "GET",
-        headers,
-        cache: "no-store",
-      });
+  const resolvedUrl = await resolveShortlink(url, headers);
+  const jsonUrl = `${stripJsonAndTrailingSlash(resolvedUrl)}.json?raw_json=1`;
 
-      const finalUrl = res.headers.get("x-final-url");
-      return finalUrl ? finalUrl.replace(/\/$/, "") : trimUrl;
-    } catch {
-      return trimUrl;
-    }
-  })();
+  const res = await proxiedFetch(jsonUrl, {
+    headers,
+    cache: "no-store",
+  });
 
-  const parsed = (() => {
-    try {
-      return new URL(resolvedUrl.startsWith("http") ? resolvedUrl : `https://${resolvedUrl}`);
-    } catch {
-      return null;
-    }
-  })();
-
-  const path = parsed?.pathname || "";
-  const basePath = path ? path.replace(/\/$/, "") : "";
-
-  const postId = (() => {
-    const segments = basePath.split("/").filter(Boolean);
-    const idFromComments = segments.find((segment, idx) => segments[idx - 1] === "comments");
-    const likelyId = idFromComments || segments.find((segment) => /^[a-z0-9]{5,9}$/i.test(segment));
-    return likelyId || "";
-  })();
-
-  const commentPath = postId ? `/comments/${postId}` : "";
-
-  const candidates = [
-    `https://www.reddit.com/api/info.json?raw_json=1&url=${encodeURIComponent(resolvedUrl)}`,
-    `${resolvedUrl}.json?raw_json=1`,
-    basePath ? `https://old.reddit.com${basePath}.json?raw_json=1` : null,
-    basePath ? `https://api.reddit.com${basePath}?raw_json=1` : null,
-    commentPath ? `https://www.reddit.com${commentPath}.json?raw_json=1` : null,
-    commentPath ? `https://old.reddit.com${commentPath}.json?raw_json=1` : null,
-  ].filter(Boolean) as string[];
-
-  let lastError: string | undefined;
-
-  for (const endpoint of candidates) {
-    try {
-      const res = await proxiedFetch(endpoint, {
-        headers,
-        cache: "no-store",
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        const cleanText = text?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-        if (res.status === 403) {
-          lastError = "Reddit returned 403 (access blocked). Try a public post or the share link.";
-        } else if (res.status === 404) {
-          lastError = "Reddit post not found (404).";
-        } else {
-          const snippet = cleanText ? ` ${cleanText.slice(0, 160)}` : "";
-          lastError = `Reddit lookup failed: ${res.status}${snippet}`;
-        }
-        continue;
-      }
-
-      const json = (await res.json()) as RedditListing | RedditListing[];
-      const post = Array.isArray(json)
-        ? json[0]?.data?.children?.[0]?.data
-        : json?.data?.children?.[0]?.data;
-
-      if (post) return post;
-    } catch (err) {
-      lastError = (err as Error).message;
-    }
+  if (!res.ok) {
+    const body = await res.text();
+    const cleanBody = body?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const snippet = cleanBody ? ` ${cleanBody.slice(0, 160)}` : "";
+    throw new Error(`Proxy lookup failed: ${res.status}${snippet}`);
   }
 
-  throw new Error(lastError || "No Reddit post found for this URL");
+  const json = (await res.json()) as RedditListing | RedditListing[];
+  const post = Array.isArray(json)
+    ? json[0]?.data?.children?.[0]?.data
+    : json?.data?.children?.[0]?.data;
+
+  if (!post) {
+    throw new Error("No Reddit post found for this URL");
+  }
+
+  return post;
 }
 
 export async function fetchRedditMedia(url: string, auth?: RedditAuth): Promise<RedditMediaResponse> {
@@ -296,9 +311,59 @@ export async function fetchRedditMedia(url: string, auth?: RedditAuth): Promise<
     throw new Error("No downloadable images, GIFs, or videos detected");
   }
 
-  return {
+  const redditVideo =
+    post.secure_media?.reddit_video || post.media?.reddit_video || post.preview?.reddit_video_preview;
+  const fallback = decodeUrl(redditVideo?.fallback_url);
+  const gallery = galleryUrls(post);
+  const direct = decodeUrl(post.url_overridden_by_dest || post.url || "");
+  const previewImage = post.preview?.images?.[0]?.source?.url
+    ? decodeUrl(post.preview.images[0].source.url)
+    : "";
+
+  const response: RedditMediaResponse = {
     title: post.title,
     author: post.author,
     items,
+    resolvedUrl: post.permalink ? `https://www.reddit.com${post.permalink}` : stripJsonAndTrailingSlash(url),
+    raw: post,
+    success: true,
+    type: "unknown",
+    media: {
+      video: null,
+      audio: null,
+      image: null,
+      gallery: [],
+    },
   };
+
+  if (fallback) {
+    response.media = {
+      video: fallback,
+      audio: buildAudioUrl(fallback),
+      image: null,
+      gallery: [],
+    };
+    response.type = redditVideo?.is_gif ? "gif" : "video";
+    return response;
+  }
+
+  if (gallery.length) {
+    response.media = { video: null, audio: null, image: null, gallery };
+    response.type = "gallery";
+    return response;
+  }
+
+  if (direct) {
+    response.media = { video: null, audio: null, image: direct, gallery: [] };
+    response.type = /\.gif($|\?)/i.test(direct) ? "gif" : "image";
+    return response;
+  }
+
+  if (previewImage) {
+    response.media = { video: null, audio: null, image: previewImage, gallery: [] };
+    response.type = "image";
+    return response;
+  }
+
+  return response;
 }

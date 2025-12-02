@@ -10,7 +10,16 @@ async function handleRequest(payload: AuthPayload) {
   const url = payload.url;
 
   if (!url) {
-    return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
+    return NextResponse.json(
+      {
+        success: false,
+        type: "unknown",
+        media: { video: null, audio: null, image: null, gallery: [] },
+        resolvedUrl: "",
+        error: "Missing url parameter",
+      },
+      { status: 400 },
+    );
   }
 
   try {
@@ -18,10 +27,22 @@ async function handleRequest(payload: AuthPayload) {
       sessionCookie: payload.sessionCookie,
       bearerToken: payload.bearerToken,
     });
-    return NextResponse.json(media);
+    return NextResponse.json({
+      success: true,
+      ...media,
+    });
   } catch (error) {
     console.error("Reddit lookup error", error);
-    return NextResponse.json({ error: (error as Error).message || "Unable to fetch Reddit media" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        type: "unknown",
+        media: { video: null, audio: null, image: null, gallery: [] },
+        resolvedUrl: "",
+        error: (error as Error).message || "Unable to fetch Reddit media",
+      },
+      { status: 500 },
+    );
   }
 }
 
