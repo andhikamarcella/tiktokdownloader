@@ -139,7 +139,7 @@ export default function InstagramDownloader() {
         </div>
         {error && <p className="text-sm text-rose-300">{error}</p>}
         {!error && !media && (
-          <p className="text-xs text-slate-400">We only use the SaveInsta RapidAPI endpoint — no scraping, Vercel safe.</p>
+          <p className="text-xs text-slate-400">Scrape-first Instagram downloader with safe server-side download.</p>
         )}
       </div>
 
@@ -164,12 +164,12 @@ export default function InstagramDownloader() {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <a
-                    href={item.url}
-                    download
-                    className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-center"
+                  href={`/api/ig/download?url=${encodeURIComponent(item.url)}`}
+                  className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-center"
                   >
-                    Direct link
+                  Direct link
                   </a>
+
                   <button
                     onClick={() => downloadItem(item, idx)}
                     className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 text-slate-900 font-semibold flex items-center gap-2 justify-center"
