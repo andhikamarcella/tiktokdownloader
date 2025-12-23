@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchInstagramMedia } from "../../../lib/instagram";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // Instagram Downloader API (Scrape-first, RapidAPI fallback inside lib)
 export async function GET(req: Request) {
