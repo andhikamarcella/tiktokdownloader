@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Download, Image as ImageIcon, Loader2, PlayCircle, Users } from "lucide-react";
-import type { SaveInstaItem } from "../lib/instagram";
+import type { InstagramRapidItem } from "../lib/instagram";
 
 type MediaState = {
   title?: string;
   author?: string;
-  items: SaveInstaItem[];
+  items: InstagramRapidItem[];
 };
 
 type HistoryItem = { url: string; thumb: string; caption: string; ts: number };
@@ -56,10 +56,10 @@ export default function InstagramDownloader() {
       setMedia({
         title: json.title,
         author: json.author,
-        items: json.items as SaveInstaItem[],
+        items: json.items as InstagramRapidItem[],
       });
       if (json.items?.length) {
-        const first = json.items[0] as SaveInstaItem;
+        const first = json.items[0] as InstagramRapidItem;
         setHistory((prev) => [
           {
             url,
@@ -77,7 +77,7 @@ export default function InstagramDownloader() {
     }
   };
 
-  const downloadItem = async (item: SaveInstaItem, index: number) => {
+  const downloadItem = async (item: InstagramRapidItem, index: number) => {
     setError(null);
     try {
       const res = await fetch(item.url);
