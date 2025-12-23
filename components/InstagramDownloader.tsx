@@ -80,7 +80,9 @@ export default function InstagramDownloader() {
   const downloadItem = async (item: InstagramRapidItem, index: number) => {
     setError(null);
     try {
-      const res = await fetch(item.url);
+      const res = await fetch(
+      `/api/ig/download?url=${encodeURIComponent(item.url)}`
+      );
       if (!res.ok) throw new Error("Unable to download media");
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
