@@ -143,33 +143,37 @@ export async function fetchInstagramMediaRapid(
     record.result ||
     [];
 
-  const items: InstagramRapidItem[] = (Array.isArray(candidates)
-    ? candidates
-    : [candidates]
-  )
-    .map((item) => {
-      const url =
-        item.url ||
-        item.link ||
-        item.video_url ||
-        item.image_url ||
-        item.src;
-      if (!url) return null;
-      return {
-        url,
-        type:
-          item.type === "video" || /\.mp4/.test(url)
-            ? "video"
-            : "image",
-        thumbnail:
-          item.thumbnail ||
-          item.thumb ||
-          item.preview ||
-          item.poster,
-      };
-    })
-    .filter(Boolean);
+  const items = (Array.isArray(candidates)
+  ? candidates
+  : [candidates]
+)
+  .map((item): InstagramRapidItem | null => {
+    if (!item) return null;
 
+    const url =
+      item.url ||
+      item.link ||
+      item.video_url ||
+      item.image_url ||
+      item.src;
+
+    if (!url) return null;
+
+    return {
+      url,
+      type:
+        item.type === "video" || /\.mp4/.test(url)
+          ? "video"
+          : "image",
+      thumbnail:
+        item.thumbnail ||
+        item.thumb ||
+        item.preview ||
+        item.poster,
+    };
+  })
+  .filter((item): item is InstagramRapidItem => item !== null);
+  
   return {
     items,
     title: record.title || record.caption,
