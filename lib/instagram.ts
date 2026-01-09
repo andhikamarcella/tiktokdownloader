@@ -8,6 +8,7 @@ export type InstagramRapidResponse = {
   title?: string;
   author?: string;
   items: InstagramRapidItem[];
+  raw?: any;
 };
 
 function extractShortcode(url: string) {
