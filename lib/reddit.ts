@@ -75,7 +75,7 @@ type RedditPost = {
   media?: { reddit_video?: RedditVideo };
 };
 
-const WORKER_URL = "https://blue-mode-1265.andhikamarcellafernanda.workers.dev/?url=";
+const WORKER_URL = "https://redditdown.andhikamarcellafernanda.workers.dev/?url=";
 
 const decodeUrl = (url?: string) => url?.replace(/&amp;/g, "&") ?? "";
 
