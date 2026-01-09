@@ -1,9 +1,10 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { fetchInstagramMedia } from "../../../lib/instagram";
 
-export const runtime = "nodejs";
-
-// Instagram Downloader API (Scrape-first, RapidAPI fallback inside lib)
+// Instagram Downloader API
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
