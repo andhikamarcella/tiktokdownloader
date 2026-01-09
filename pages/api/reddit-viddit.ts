@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36";
-const WORKER_URL = "https://blue-mode-1265.andhikamarcellafernanda.workers.dev/?url=";
+const WORKER_URL = "https://redditdown.andhikamarcellafernanda.workers.dev/?url=";
 
 type MediaType = "video" | "image" | "gallery" | "gif" | "unknown";
 
