@@ -21,13 +21,16 @@ export async function fetchInstagramMediaScrape(url: string) {
   if (!shortcode) throw new Error("Invalid Instagram URL");
 
   const res = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-    redirect: "follow",
-  });
+  headers: {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.instagram.com/",
+  },
+  redirect: "follow",
+  cache: "no-store", // 🔥 WAJIB
+});
 
   if (!res.ok) {
     throw new Error("Instagram page fetch failed");
