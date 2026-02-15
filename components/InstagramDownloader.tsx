@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Download, Image as ImageIcon, Loader2, PlayCircle, Users } from "lucide-react";
-import type { SaveInstaItem } from "../lib/instagram";
+import type { InstagramRapidItem } from "../lib/instagram";
 
 type MediaState = {
   title?: string;
   author?: string;
-  items: SaveInstaItem[];
+  items: InstagramRapidItem[];
 };
 
 type HistoryItem = { url: string; thumb: string; caption: string; ts: number };
@@ -56,10 +56,10 @@ export default function InstagramDownloader() {
       setMedia({
         title: json.title,
         author: json.author,
-        items: json.items as SaveInstaItem[],
+        items: json.items as InstagramRapidItem[],
       });
       if (json.items?.length) {
-        const first = json.items[0] as SaveInstaItem;
+        const first = json.items[0] as InstagramRapidItem;
         setHistory((prev) => [
           {
             url,
@@ -77,10 +77,12 @@ export default function InstagramDownloader() {
     }
   };
 
-  const downloadItem = async (item: SaveInstaItem, index: number) => {
+  const downloadItem = async (item: InstagramRapidItem, index: number) => {
     setError(null);
     try {
-      const res = await fetch(item.url);
+      const res = await fetch(
+      `/api/ig/download?url=${encodeURIComponent(item.url)}`
+      );
       if (!res.ok) throw new Error("Unable to download media");
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -137,7 +139,7 @@ export default function InstagramDownloader() {
         </div>
         {error && <p className="text-sm text-rose-300">{error}</p>}
         {!error && !media && (
-          <p className="text-xs text-slate-400">We only use the SaveInsta RapidAPI endpoint — no scraping, Vercel safe.</p>
+          <p className="text-xs text-slate-400">Scrape-first Instagram downloader with safe server-side download.</p>
         )}
       </div>
 
@@ -162,12 +164,12 @@ export default function InstagramDownloader() {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <a
-                    href={item.url}
-                    download
-                    className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-center"
+                  href={`/api/ig/download?url=${encodeURIComponent(item.url)}`}
+                  className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-center"
                   >
-                    Direct link
+                  Direct link
                   </a>
+
                   <button
                     onClick={() => downloadItem(item, idx)}
                     className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-orange-400 text-slate-900 font-semibold flex items-center gap-2 justify-center"

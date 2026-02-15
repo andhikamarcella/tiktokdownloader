@@ -20,7 +20,7 @@ const links = [
 ]
 
 export default function Navigation({ isAuthed = false }: NavigationProps) {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   return (
     <header className="pt-6 flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -1,184 +1,83 @@
-// Instagram downloader helpers using RapidAPI providers
-export type SaveInstaItem = {
-  url: string;
-  type: "video" | "image";
-  thumbnail?: string;
-  width?: number;
-  height?: number;
-};
-
-export type SaveInstaResponse = {
-  title?: string;
-  author?: string;
-  caption?: string;
-  username?: string;
-  media?: any[];
-  result?: any[];
-  links?: any[];
-  items?: any[];
-  url?: string;
-};
-
 export type InstagramRapidItem = {
   url: string;
   type: "video" | "image";
   thumbnail?: string;
-  width?: number;
-  height?: number;
 };
 
 export type InstagramRapidResponse = {
   title?: string;
   author?: string;
   items: InstagramRapidItem[];
-  raw: unknown;
+  raw?: any;
 };
 
-const FALLBACK_HOST = "instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com";
-
-const guessTypeFromUrl = (url: string): "video" | "image" =>
-  /\.mp4($|\?)/i.test(url) || /\/reel\//.test(url) || /\/video\//.test(url) ? "video" : "image";
-
-const normalizeCandidates = (candidate: unknown): InstagramRapidItem[] => {
-  if (!candidate) return [];
-  const arrayLike = Array.isArray(candidate) ? candidate : [candidate];
-  return arrayLike
-    .map((item) => {
-      if (!item) return null;
-      if (typeof item === "string") {
-        return { url: item, type: guessTypeFromUrl(item) } satisfies InstagramRapidItem;
-      }
-      if (typeof item === "object") {
-        const record = item as Record<string, unknown>;
-        const url =
-          typeof record.url === "string"
-            ? record.url
-            : typeof record.link === "string"
-              ? record.link
-              : typeof record.downloadUrl === "string"
-                ? record.downloadUrl
-                : typeof record.download_link === "string"
-                  ? record.download_link
-                  : typeof record.video === "string"
-                    ? record.video
-                    : typeof record.video_url === "string"
-                      ? record.video_url
-                      : typeof record.image_url === "string"
-                        ? record.image_url
-                        : typeof record.src === "string"
-                          ? record.src
-                          : undefined;
-        if (!url) return null;
-        const typeValue = record.type;
-        const type: "video" | "image" =
-          typeValue === "video" || typeValue === "image" ? typeValue : guessTypeFromUrl(url);
-        const thumbValue =
-          (typeof record.thumbnail === "string" && record.thumbnail) ||
-          (typeof record.thumb === "string" && record.thumb) ||
-          (typeof record.preview === "string" && record.preview) ||
-          (typeof record.poster === "string" && record.poster) ||
-          (typeof record.thumbnail_url === "string" && record.thumbnail_url);
-        const thumb = typeof thumbValue === "string" ? thumbValue : undefined;
-        return {
-          url,
-          type,
-          thumbnail: thumb,
-          width: typeof record.width === "number" ? record.width : undefined,
-          height: typeof record.height === "number" ? record.height : undefined,
-        } satisfies InstagramRapidItem;
-      }
-      return null;
-    })
-    .filter(Boolean) as InstagramRapidItem[];
-};
-
-// Normalize SaveInsta responses into a stable shape for the UI
-export function normalizeSaveInsta(data: SaveInstaResponse) {
-  const candidates =
-    (Array.isArray(data.media) && data.media) ||
-    (Array.isArray(data.result) && data.result) ||
-    (Array.isArray(data.links) && data.links) ||
-    (Array.isArray(data.items) && data.items) ||
-    (data.url ? [data] : []);
-
-  const items: SaveInstaItem[] = (candidates || [])
-    .map((item: any) => {
-      const url =
-        item.url ||
-        item.link ||
-        item.downloadUrl ||
-        item.video_url ||
-        item.image_url ||
-        item.src;
-      if (!url) return null;
-      const isVideo =
-        item.type === "video" ||
-        item.mediaType === "video" ||
-        item.is_video === true ||
-        /\.mp4($|\?)/.test(url);
-      return {
-        url,
-        type: isVideo ? "video" : "image",
-        thumbnail: item.thumbnail || item.thumb || item.preview || item.poster || item.thumbnail_url,
-        width: item.width,
-        height: item.height,
-      } satisfies SaveInstaItem;
-    })
-    .filter(Boolean) as SaveInstaItem[];
-
-  return {
-    items,
-    title: data.title || data.caption || "Instagram media",
-    author: data.author || data.username || "Instagram user",
-  };
+function extractShortcode(url: string) {
+  const match = url.match(/(?:instagram\.com\/(?:p|reel|tv)\/)([\w\-]+)/);
+  return match ? match[1] : null;
 }
 
-export function normalizeRapidInstagram(data: unknown): InstagramRapidResponse {
-  const record = (data ?? {}) as Record<string, unknown>;
-  const collections = [
-    record.media,
-    record.result,
-    record.items,
-    record.links,
-    record.data,
-    (record.response as Record<string, unknown> | undefined)?.items,
-    record.url,
-  ];
+export async function fetchInstagramMediaScrape(url: string) {
+  const shortcode = extractShortcode(url);
+  if (!shortcode) throw new Error("Invalid Instagram URL");
 
-  const items = collections.flatMap(normalizeCandidates);
+  const res = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
+  headers: {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.instagram.com/",
+  },
+  redirect: "follow",
+  cache: "no-store", // 🔥 WAJIB
+});
 
-  return {
-    items,
-    title: typeof record.title === "string" ? record.title : typeof record.caption === "string" ? record.caption : undefined,
-    author: typeof record.author === "string" ? record.author : typeof record.username === "string" ? record.username : undefined,
-    raw: data,
-  } satisfies InstagramRapidResponse;
+  if (!res.ok) {
+    throw new Error("Instagram page fetch failed");
+  }
+
+  const html = await res.text();
+
+  const jsonMatch = html.match(/window\._sharedData\s*=\s*(\{.+?\});/);
+  if (!jsonMatch) throw new Error("Instagram data not found");
+
+  const data = JSON.parse(jsonMatch[1]);
+
+  return data;
 }
 
-// Fetch Instagram media using the configured RapidAPI host
 export async function fetchInstagramMedia(url: string): Promise<InstagramRapidResponse> {
-  const apiKey = process.env.RAPIDAPI_KEY;
-  const host = process.env.RAPIDAPI_HOST || FALLBACK_HOST;
+  const data = await fetchInstagramMediaScrape(url);
+  
+  // Parse the scraped data
+  // Note: This structure might change as Instagram updates their frontend
+  const post = data?.entry_data?.PostPage?.[0]?.graphql?.shortcode_media;
+  if (!post) throw new Error("Invalid Instagram data structure");
 
-  if (!apiKey) {
-    throw new Error("RAPIDAPI_KEY is not configured");
+  const items: InstagramRapidItem[] = [];
+
+  if (post.edge_sidecar_to_children) {
+      // Gallery
+      for (const edge of post.edge_sidecar_to_children.edges) {
+          const node = edge.node;
+          items.push({
+              url: node.is_video ? node.video_url : node.display_url,
+              type: node.is_video ? "video" : "image",
+              thumbnail: node.display_url
+          });
+      }
+  } else {
+      // Single item
+      items.push({
+          url: post.is_video ? post.video_url : post.display_url,
+          type: post.is_video ? "video" : "image",
+          thumbnail: post.display_url
+      });
   }
 
-  const endpoint = `https://${host}/convert?url=${encodeURIComponent(url)}`;
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: {
-      "X-RapidAPI-Key": apiKey,
-      "X-RapidAPI-Host": host,
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`RapidAPI request failed: ${response.status} ${text}`);
-  }
-
-  const data = await response.json();
-  return normalizeRapidInstagram(data);
+  return {
+      title: post.edge_media_to_caption?.edges?.[0]?.node?.text || "Instagram Post",
+      author: post.owner?.username,
+      items
+  };
 }

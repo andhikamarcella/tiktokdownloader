@@ -7,6 +7,7 @@ const features = [
   'Audio-only MP3/M4A',
   'AI caption summarizer & translator',
   'Music detection via Spotify / YT Music',
+  'Reddit photo, GIF, & video downloads',
   'Smart history stored locally',
   'Profile bulk downloads'
 ]
